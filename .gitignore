@@ -1,0 +1,3 @@
+# offline build artifacts (large binaries, rebuild with scripts/build-offline-bundle.sh)
+dist/
+*.tar.gz

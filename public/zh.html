@@ -89,6 +89,7 @@
     <h2>纯内网（无外网）机器怎么测？</h2>
     <p style="margin:0">如果上面所有项目都显示"超时/无法连接"，说明本机无法访问外网测试域名，在线检测不可用。请使用配套的 PowerShell 离线检测脚本 <code>Check-EmSignTrust.ps1</code>，它通过以下方式判断：</p>
     <ul class="tight">
+      <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a>（Windows）/ <a href="downloads/check-emsign-linux.sh"><code>check-emsign-linux.sh</code></a>（Linux）可完全离线运行；</li>
       <li>检查 Windows「不允许的证书」吊销列表（Disallowed CTL）中是否已包含 16 张问题证书的指纹；</li>
       <li>枚举本机安装的浏览器及版本，对照各厂商封锁时间给出风险提示；</li>
       <li>（可选）在有外网时直接对 12 个测试域名做 TLS 握手探测。</li>

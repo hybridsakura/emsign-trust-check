@@ -92,6 +92,7 @@
     <p style="margin:0">If every row above shows a timeout, this machine cannot reach the test domains and the live check is inconclusive. Use the bundled offline checker instead:</p>
     <ul class="tight">
       <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a> &mdash; Windows PowerShell script that compares the 16 compromised certificates' fingerprints against the local Disallowed CTL, enumerates installed browser versions, and optionally performs live TLS probes.</li>
+      <li><a href="downloads/check-emsign-linux.sh"><code>check-emsign-linux.sh</code></a> &mdash; Linux equivalent: inspects distrust markers in the local trust store and package version without any network access, plus optional live probes.</li>
       <li><a href="downloads/fingerprints.json"><code>fingerprints.json</code></a> &mdash; SHA-1/SHA-256 fingerprints of all 16 compromised certificates (computed locally from PEM, SHA-256 verified against the official list).</li>
       <li><a href="downloads/impacted-intermediates.json"><code>impacted-intermediates.json</code></a> &mdash; the official certificate data (with PEM) for offline chain verification with OpenSSL.</li>
     </ul>

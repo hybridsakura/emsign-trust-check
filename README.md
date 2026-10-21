@@ -39,6 +39,45 @@ Then have every intranet machine open `http://<server>:8080/` in **each installe
 
 > The live check probes the public test domains run by the original disclosure site, so the *checking machine* (not the Docker host) needs to reach `*.we-have-a-problem.com`. For air-gapped machines, use `downloads/Check-EmSignTrust.ps1`.
 
+## Deploying on an air-gapped network (no Internet at all)
+
+The container is 100% static: it needs no registry, no CDN, no external asset at runtime. Everything is baked into the image, so an offline host only needs the exported tarball.
+
+On a machine **with** Docker and Internet (the build host):
+
+```bash
+./scripts/build-offline-bundle.sh 1.0.0
+```
+
+This produces:
+
+| Artifact | Use |
+|---|---|
+| `dist/emsign-trust-check-1.0.0-docker-amd64.tar.gz` | `docker load` on offline hosts — the entire image, no registry pull |
+| `dist/emsign-trust-check-1.0.0-static.tar.gz` | plain web root + scripts for hosts **without** Docker |
+| `dist/SHA256SUMS` | integrity check before rollout |
+
+On the offline host (copy `dist/` via USB or an internal share):
+
+```bash
+sha256sum -c SHA256SUMS
+
+# Docker present:
+tar xzf emsign-trust-check-1.0.0-static.tar.gz && cd emsign-trust-check-1.0.0
+sudo ./scripts/install-offline.sh --docker --image ../dist/emsign-trust-check-1.0.0-docker-amd64.tar.gz
+
+# No Docker (needs only python3, served via systemd):
+sudo ./scripts/install-offline.sh --port 8080
+```
+
+Both modes verify themselves on `http://127.0.0.1:<port>/` using loopback only — no Internet required. To prove the container has no external dependency, you can run it with networking fully disabled:
+
+```bash
+docker run --rm --network none emsign-trust-check:1.0.0 sh -c 'wget -qO- http://127.0.0.1/ | head -3'
+```
+
+> Note: the *live check page* still probes the public test domains, so it is inconclusive on isolated hosts — that is expected. Use the offline scripts there; the page itself loads and works fine without Internet.
+
 ## Offline checking (Windows, no Internet)
 
 ```powershell
