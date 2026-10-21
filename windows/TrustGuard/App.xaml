@@ -6,13 +6,14 @@
         <ResourceDictionary>
 
             <conv:EmptyToCollapsed x:Key="EmptyToCollapsed"/>
+            <conv:BoolToVisibility x:Key="BoolToVis"/>
 
             <!-- palette -->
-            <SolidColorBrush x:Key="BgBrush" Color="#F4F6FB"/>
+            <SolidColorBrush x:Key="BgBrush" Color="#F3F5FA"/>
             <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF"/>
-            <SolidColorBrush x:Key="BorderBrush" Color="#E7EBF3"/>
-            <SolidColorBrush x:Key="TextBrush" Color="#0F172A"/>
-            <SolidColorBrush x:Key="SubTextBrush" Color="#64748B"/>
+            <SolidColorBrush x:Key="BorderBrush" Color="#E3E8F0"/>
+            <SolidColorBrush x:Key="TextBrush" Color="#0B1220"/>
+            <SolidColorBrush x:Key="SubTextBrush" Color="#4B5563"/>
             <SolidColorBrush x:Key="AccentBrush" Color="#2563EB"/>
             <SolidColorBrush x:Key="AccentSoftBrush" Color="#E8EFFE"/>
             <SolidColorBrush x:Key="ChipBrush" Color="#F1F5F9"/>
@@ -28,7 +29,8 @@
                 <Setter Property="Padding" Value="18,16"/>
                 <Setter Property="Effect">
                     <Setter.Value>
-                        <DropShadowEffect BlurRadius="16" ShadowDepth="2" Direction="270" Opacity="0.05" Color="#0F172A"/>
+                        <!-- flat: a very light shadow only to separate the card from the canvas -->
+                        <DropShadowEffect BlurRadius="9" ShadowDepth="1" Direction="270" Opacity="0.035" Color="#0B1220"/>
                     </Setter.Value>
                 </Setter>
             </Style>

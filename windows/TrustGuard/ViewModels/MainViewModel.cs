@@ -16,6 +16,7 @@ public sealed class CheckVerdict : INotifyPropertyChanged
 {
     private string _title = "尚未检测";
     private string _subtitle = "点击「开始检测」运行本页检查项。";
+    private string _glyph = "·";
     private Brush _light = Frozen("#CBD5E1");
     private Color _glow = (Color)ColorConverter.ConvertFromString("#00FFFFFF")!;
 
@@ -27,8 +28,10 @@ public sealed class CheckVerdict : INotifyPropertyChanged
 
     public string Title { get => _title; private set => Set(ref _title, value); }
     public string Subtitle { get => _subtitle; private set => Set(ref _subtitle, value); }
+    public string Glyph { get => _glyph; private set => Set(ref _glyph, value); }
     public Brush Light { get => _light; private set => Set(ref _light, value); }
     public Color Glow { get => _glow; private set => Set(ref _glow, value); }
+    public bool ShowInfo => InfoCount > 0;
 
     public string CountsText => $"通过 {PassCount} · 未通过 {FailCount} · 需关注 {WarnCount}" +
                                 (InfoCount > 0 ? $" · 提示 {InfoCount}" : "");
@@ -46,25 +49,29 @@ public sealed class CheckVerdict : INotifyPropertyChanged
         {
             Title = "尚未检测";
             Subtitle = "点击「开始检测」运行本页检查项。";
+            Glyph = "·";
             SetLight("#CBD5E1", "#00FFFFFF");
         }
         else if (FailCount > 0)
         {
             Title = "存在风险";
             Subtitle = $"本场景 {RelevantCount} 个检查项中有 {FailCount} 项未通过，建议立即处置。";
-            SetLight("#EF4444", "#7AEF4444");
+            Glyph = "✕";
+            SetLight("#E5484D", "#00FFFFFF");
         }
         else if (WarnCount > 0)
         {
             Title = "部分项目需关注";
             Subtitle = $"未发现直接失陷项，但有 {WarnCount} 项配置偏弱，建议按处置建议加固。";
-            SetLight("#F59E0B", "#7AF59E0B");
+            Glyph = "!";
+            SetLight("#E08700", "#00FFFFFF");
         }
         else
         {
             Title = "全部通过";
             Subtitle = $"本场景 {RelevantCount} 个检查项全部通过。";
-            SetLight("#22C55E", "#7A22C55E");
+            Glyph = "✓";
+            SetLight("#16A34A", "#0016A34A");
         }
         OnPropertyChanged(nameof(CountsText));
         OnPropertyChanged(nameof(PassCount));
@@ -72,6 +79,7 @@ public sealed class CheckVerdict : INotifyPropertyChanged
         OnPropertyChanged(nameof(WarnCount));
         OnPropertyChanged(nameof(InfoCount));
         OnPropertyChanged(nameof(RelevantCount));
+        OnPropertyChanged(nameof(ShowInfo));
     }
 
     private void SetLight(string hex, string glowHex)

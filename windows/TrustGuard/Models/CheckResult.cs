@@ -50,11 +50,45 @@ public sealed class CheckResult : INotifyPropertyChanged
             OnPropertyChanged(nameof(StatusBrush));
             OnPropertyChanged(nameof(LightBrush));
             OnPropertyChanged(nameof(LightGlow));
+            OnPropertyChanged(nameof(StatusBackground));
+            OnPropertyChanged(nameof(StatusBorder));
+            OnPropertyChanged(nameof(StatusGlyph));
             OnPropertyChanged(nameof(IsProblem));
+            OnPropertyChanged(nameof(IsFail));
         }
     }
 
     public bool IsProblem => Status is CheckStatus.Fail or CheckStatus.Warn;
+
+    /// <summary>Failed rows open their impact/remediation panel automatically.</summary>
+    public bool IsFail => Status == CheckStatus.Fail;
+
+    /// <summary>Flat badge fill — a tint of the status colour, no glow.</summary>
+    public Brush StatusBackground => Status switch
+    {
+        CheckStatus.Pass => Frozen("#ECFDF3"),
+        CheckStatus.Fail => Frozen("#FEF3F2"),
+        CheckStatus.Warn => Frozen("#FFFAEB"),
+        _ => Frozen("#F8FAFC")
+    };
+
+    public Brush StatusBorder => Status switch
+    {
+        CheckStatus.Pass => Frozen("#A6E9C0"),
+        CheckStatus.Fail => Frozen("#F5B5AF"),
+        CheckStatus.Warn => Frozen("#F2D48A"),
+        _ => Frozen("#DCE3EC")
+    };
+
+    public string StatusGlyph => Status switch
+    {
+        CheckStatus.Pass => "✓",
+        CheckStatus.Fail => "✕",
+        CheckStatus.Warn => "!",
+        CheckStatus.Info => "i",
+        CheckStatus.Running => "…",
+        _ => "·"
+    };
 
     public string StatusText => Status switch
     {
