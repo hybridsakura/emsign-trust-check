@@ -1,0 +1,8 @@
+services:
+  emsign-trust-check:
+    build: .
+    image: emsign-trust-check:latest
+    container_name: emsign-trust-check
+    ports:
+      - "8080:80"
+    restart: unless-stopped

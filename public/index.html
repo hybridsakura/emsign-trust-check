@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>emSign Trust Check — eMudhra Intermediate CA Compromise Detector</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --border: #e2e5ea;
+    --text: #1f2329; --muted: #6b7280;
+    --good-bg: #e8f7ee; --good-fg: #157347; --good-bd: #b7e4c7;
+    --bad-bg: #fdecec; --bad-fg: #b42318; --bad-bd: #f5c2c0;
+    --warn-bg: #fff7e6; --warn-fg: #9a6a00; --warn-bd: #f0dfa8;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 64px;
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header h1 { font-size: 26px; margin: 0 0 6px; }
+  header p.sub { color: var(--muted); margin: 0 0 20px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 22px; margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: #fafbfc; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.result { font-weight: 600; white-space: nowrap; }
+  td.result.pending { color: var(--muted); font-weight: 400; }
+  td.result.good { color: var(--good-fg); }
+  td.result.bad { color: var(--bad-fg); }
+  code { background: #eef1f5; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 22px; font-size: 15px; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .banner { border-radius: 8px; padding: 14px 16px; margin-top: 16px; font-weight: 600; display: none; }
+  .banner.show { display: block; }
+  .banner.good { background: var(--good-bg); color: var(--good-fg); border: 1px solid var(--good-bd); }
+  .banner.bad { background: var(--bad-bg); color: var(--bad-fg); border: 1px solid var(--bad-bd); }
+  .banner.warn { background: var(--warn-bg); color: var(--warn-fg); border: 1px solid var(--warn-bd); }
+  .ua { word-break: break-all; font-size: 12.5px; color: var(--muted); }
+  ul.tight { margin: 8px 0 0; padding-left: 20px; }
+  ul.tight li { margin: 4px 0; }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #eef1f5; color: var(--muted); margin-left: 6px; }
+  .lang { float: right; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="lang"><a href="zh.html">中文版</a></span>
+    <h1>emSign Trust Check</h1>
+    <p class="sub">Does your browser still trust the compromised eMudhra intermediate CAs? &mdash; a self-hostable, intranet-friendly checker inspired by <a href="https://emudhra.we-have-a-problem.com/">emudhra.we-have-a-problem.com</a></p>
+  </header>
+
+  <div class="card">
+    <h2>Background</h2>
+    <p style="margin:0 0 8px">On 17 October 2026, the private keys of eight eMudhra intermediate CA certificates were confirmed compromised (recoverable from the certificates themselves). They chain to roots trusted by the Mozilla, Microsoft, Apple and Chrome root programs. An attacker holding these keys can impersonate any website.</p>
+    <p style="margin:0">The certificates have been blocked in Firefox and Chrome since <strong>Oct 17</strong>, on Apple platforms since <strong>Oct 19</strong>, and on Microsoft platforms since <strong>Oct 20</strong> &mdash; delivered through revocation push mechanisms (CRLite, CRLSets, Disallowed CTL). <strong>Machines that stay offline for long periods (typical intranet computers) may never have received these pushes and need to be checked individually.</strong></p>
+  </div>
+
+  <div class="card" id="check-card">
+    <h2>Live check <span class="tag">requires access to the external test domains</span></h2>
+    <p style="margin-top:0">This page opens HTTPS connections to twelve test sites whose certificate chains are signed by the compromised intermediates. If a connection <strong>succeeds</strong>, your browser still trusts that chain and is <strong>at risk</strong>. If it is rejected by certificate validation, you are protected.</p>
+    <table id="results">
+      <thead>
+        <tr><th>Intermediate CA</th><th>Chains to</th><th>Result</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div id="summary" class="banner"></div>
+    <p style="margin:16px 0 0"><button id="rerun">Run check</button></p>
+  </div>
+
+  <div class="card">
+    <h2>Your browser</h2>
+    <p class="ua" id="ua"></p>
+    <p id="browser-hint" style="margin-bottom:0"></p>
+  </div>
+
+  <div class="card">
+    <h2>Fully offline machines (no Internet at all)</h2>
+    <p style="margin:0">If every row above shows a timeout, this machine cannot reach the test domains and the live check is inconclusive. Use the bundled offline checker instead:</p>
+    <ul class="tight">
+      <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a> &mdash; Windows PowerShell script that compares the 16 compromised certificates' fingerprints against the local Disallowed CTL, enumerates installed browser versions, and optionally performs live TLS probes.</li>
+      <li><a href="downloads/fingerprints.json"><code>fingerprints.json</code></a> &mdash; SHA-1/SHA-256 fingerprints of all 16 compromised certificates (computed locally from PEM, SHA-256 verified against the official list).</li>
+      <li><a href="downloads/impacted-intermediates.json"><code>impacted-intermediates.json</code></a> &mdash; the official certificate data (with PEM) for offline chain verification with OpenSSL.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Remediation</h2>
+    <ul class="tight">
+      <li><strong>Windows / Edge / Chrome:</strong> install the latest cumulative updates (Microsoft pushed the disallowed-list block from Oct 20) and update browsers.</li>
+      <li><strong>Firefox:</strong> update to the latest version (CRLite/OneCRL deliver the block automatically).</li>
+      <li><strong>macOS:</strong> install the security updates released after Oct 19; note that bundled curl/git/python3 verify against <code>/etc/ssl/cert.pem</code> which needs separate handling.</li>
+      <li><strong>Dev toolchains:</strong> NSS &ge; 3.131.1, certifi &ge; 2026.10.19, Node.js &ge; 22.23.4, Go &ge; 1.26.10, curl CA bundle &ge; 2026-10-20 (full list on the original site).</li>
+      <li>After checking, export or screenshot the result and hand it to your security administrator.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// Twelve test hosts: 6 TLS intermediates x 2 chains (emSign root / AAA Certificate Services cross-sign)
+const HOSTS = [
+  { host: 'dv-g3b-emudhra.we-have-a-problem.com',     label: 'CN=EM DV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'emSign Root TLS CA - G3' },
+  { host: 'dv-g3c-emudhra.we-have-a-problem.com',     label: 'CN=EM DV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'emSign Root TLS CA - G3' },
+  { host: 'ov-g3b-emudhra.we-have-a-problem.com',     label: 'CN=EM OV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'emSign Root TLS CA - G3' },
+  { host: 'ov-g3c-emudhra.we-have-a-problem.com',     label: 'CN=EM OV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'emSign Root TLS CA - G3' },
+  { host: 'ev-g3b-emudhra.we-have-a-problem.com',     label: 'CN=EM EV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'emSign Root TLS CA - G3' },
+  { host: 'ev-g3c-emudhra.we-have-a-problem.com',     label: 'CN=EM EV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'emSign Root TLS CA - G3' },
+  { host: 'dv-g3b-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM DV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'AAA Certificate Services' },
+  { host: 'dv-g3c-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM DV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'AAA Certificate Services' },
+  { host: 'ov-g3b-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM OV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'AAA Certificate Services' },
+  { host: 'ov-g3c-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM OV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'AAA Certificate Services' },
+  { host: 'ev-g3b-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM EV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'AAA Certificate Services' },
+  { host: 'ev-g3c-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM EV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'AAA Certificate Services' },
+];
+const TIMEOUT_MS = 10000;
+
+const resultsBody = document.querySelector('#results tbody');
+const summary = document.getElementById('summary');
+const rerun = document.getElementById('rerun');
+
+function cell(text, cls) {
+  const td = document.createElement('td');
+  td.textContent = text;
+  if (cls) td.className = cls;
+  return td;
+}
+
+async function probe(host) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(`https://${host}/?t=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
+    // Any HTTP response at all means the TLS handshake succeeded -> the chain is still trusted
+    return { status: 'connected', text: res.ok ? '❌ Connected (still trusted!)' : `❌ Connected (HTTP ${res.status})` };
+  } catch (err) {
+    if (err.name === 'AbortError') return { status: 'unknown', text: '⚠️ Timed out (inconclusive)' };
+    // Browsers report TLS failures and network errors identically; treat as not connected
+    return { status: 'blocked', text: '✅ Did not connect (blocked)' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const cells = HOSTS.map(({ host, label, root }) => {
+  const tr = document.createElement('tr');
+  const tdName = document.createElement('td');
+  const a = document.createElement('a');
+  a.href = `https://${host}/`; a.rel = 'noopener'; a.target = '_blank'; a.textContent = label;
+  tdName.appendChild(a);
+  const tdResult = cell('not yet checked', 'result pending');
+  tr.append(tdName, cell(root), tdResult);
+  resultsBody.appendChild(tr);
+  return tdResult;
+});
+
+async function run() {
+  summary.className = 'banner';
+  summary.textContent = '';
+  for (const td of cells) { td.textContent = 'checking…'; td.className = 'result pending'; }
+  const results = await Promise.all(HOSTS.map(async ({ host }, i) => {
+    const r = await probe(host);
+    cells[i].textContent = r.text;
+    cells[i].className = 'result ' + { connected: 'bad', blocked: 'good', unknown: 'pending' }[r.status];
+    return r.status;
+  }));
+  const n = results.filter(s => s === 'connected').length;
+  const unknown = results.filter(s => s === 'unknown').length;
+  summary.classList.add('show');
+  if (n > 0) {
+    summary.classList.add('bad');
+    summary.textContent = `⚠️ AT RISK: this browser connected to ${n} of ${HOSTS.length} test hosts — it still trusts the compromised emSign intermediates and could be impersonated. Update the browser and OS immediately.` +
+      (unknown ? ` (${unknown} more timed out, so the result is incomplete.)` : '');
+  } else if (unknown > 0) {
+    summary.classList.add('warn');
+    summary.textContent = `Inconclusive: ${unknown} of ${HOSTS.length} probes timed out. If all of them timed out, this machine likely has no Internet access — use the offline checker (Check-EmSignTrust.ps1) below.`;
+  } else {
+    summary.classList.add('good');
+    summary.textContent = `✅ Safe: all ${HOSTS.length} test hosts were rejected by certificate validation. This browser no longer trusts the compromised emSign intermediates.`;
+  }
+}
+
+rerun.addEventListener('click', async () => {
+  rerun.disabled = true;
+  await run();
+  rerun.textContent = 'Run again';
+  rerun.disabled = false;
+});
+
+// Browser info
+document.getElementById('ua').textContent = 'User-Agent: ' + navigator.userAgent;
+(function () {
+  const ua = navigator.userAgent;
+  let hint = '';
+  const m = ua.match(/(?:Chrome|Chromium|Edg)\/(\d+)/);
+  const f = ua.match(/Firefox\/(\d+)/);
+  if (f) hint = `Detected Firefox ${f[1]}. The block ships via CRLite/OneCRL (since 2026-10-17); long-offline installs may not have received it.`;
+  else if (/Edg\//.test(ua)) hint = `Detected Edge ${m[1]}. Relies on the Windows Disallowed CTL (since 10-20) and CRLSets; long-offline systems may not have received them.`;
+  else if (m) hint = `Detected a Chrome/Chromium-based browser ${m[1]}. The block ships via CRLSets (since 2026-10-17); long-offline installs may not have received it.`;
+  else hint = 'Unrecognized browser — rely on the live check result above.';
+  document.getElementById('browser-hint').textContent = hint;
+})();
+</script>
+</body>
+</html>

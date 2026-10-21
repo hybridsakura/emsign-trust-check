@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>emSign 证书漏洞本地检测 — 浏览器信任检查</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --border: #e2e5ea;
+    --text: #1f2329; --muted: #6b7280;
+    --good-bg: #e8f7ee; --good-fg: #157347; --good-bd: #b7e4c7;
+    --bad-bg: #fdecec; --bad-fg: #b42318; --bad-bd: #f5c2c0;
+    --warn-bg: #fff7e6; --warn-fg: #9a6a00; --warn-bd: #f0dfa8;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 64px;
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header h1 { font-size: 26px; margin: 0 0 6px; }
+  header p.sub { color: var(--muted); margin: 0 0 20px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 22px; margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: #fafbfc; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td.result { font-weight: 600; white-space: nowrap; }
+  td.result.pending { color: var(--muted); font-weight: 400; }
+  td.result.good { color: var(--good-fg); }
+  td.result.bad { color: var(--bad-fg); }
+  code { background: #eef1f5; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 22px; font-size: 15px; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .banner { border-radius: 8px; padding: 14px 16px; margin-top: 16px; font-weight: 600; display: none; }
+  .banner.show { display: block; }
+  .banner.good { background: var(--good-bg); color: var(--good-fg); border: 1px solid var(--good-bd); }
+  .banner.bad { background: var(--bad-bg); color: var(--bad-fg); border: 1px solid var(--bad-bd); }
+  .banner.warn { background: var(--warn-bg); color: var(--warn-fg); border: 1px solid var(--warn-bd); }
+  .ua { word-break: break-all; font-size: 12.5px; color: var(--muted); }
+  ul.tight { margin: 8px 0 0; padding-left: 20px; }
+  ul.tight li { margin: 4px 0; }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; background: #eef1f5; color: var(--muted); margin-left: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>emSign 证书漏洞本地检测</h1>
+    <p class="sub">检测当前浏览器是否仍信任 2026 年 10 月被攻陷的 8 个 eMudhra 中间 CA（emSign 证书漏洞）— 仿 emudhra.we-have-a-problem.com，供内网分发使用</p>
+  </header>
+
+  <div class="card">
+    <h2>背景</h2>
+    <p style="margin:0 0 8px">2026 年 10 月 17 日，eMudhra 的 8 个中间 CA 私钥被确认泄露（可从证书直接恢复），这些中间 CA 链条到 Mozilla、Microsoft、Apple、Chrome 均信任的根证书。持有私钥的攻击者可冒充任意网站发起中间人攻击。</p>
+    <p style="margin:0">Firefox / Chrome 已于 <strong>10 月 17 日</strong>、Apple 平台于 <strong>10 月 19 日</strong>、Microsoft 平台于 <strong>10 月 20 日</strong>起封锁这些证书。<strong>长期不联网的内网电脑很可能尚未收到封锁列表，需要逐台检测。</strong></p>
+  </div>
+
+  <div class="card" id="check-card">
+    <h2>在线行为检测 <span class="tag">需要能访问外网测试域名</span></h2>
+    <p style="margin-top:0">本页会向 12 个由被攻陷中间 CA 签发的测试站点发起 HTTPS 连接。若连接<strong>成功</strong>，说明当前浏览器仍信任该证书链，<strong>存在风险</strong>；若连接被证书验证拦截，则浏览器已受保护。</p>
+    <table id="results">
+      <thead>
+        <tr><th>中间 CA</th><th>链接到的根</th><th>结果</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div id="summary" class="banner"></div>
+    <p style="margin:16px 0 0"><button id="rerun">开始检测</button></p>
+  </div>
+
+  <div class="card">
+    <h2>当前浏览器信息</h2>
+    <p class="ua" id="ua"></p>
+    <p id="browser-hint" style="margin-bottom:0"></p>
+  </div>
+
+  <div class="card">
+    <h2>纯内网（无外网）机器怎么测？</h2>
+    <p style="margin:0">如果上面所有项目都显示"超时/无法连接"，说明本机无法访问外网测试域名，在线检测不可用。请使用配套的 PowerShell 离线检测脚本 <code>Check-EmSignTrust.ps1</code>，它通过以下方式判断：</p>
+    <ul class="tight">
+      <li>检查 Windows「不允许的证书」吊销列表（Disallowed CTL）中是否已包含 16 张问题证书的指纹；</li>
+      <li>枚举本机安装的浏览器及版本，对照各厂商封锁时间给出风险提示；</li>
+      <li>（可选）在有外网时直接对 12 个测试域名做 TLS 握手探测。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>修复建议</h2>
+    <ul class="tight">
+      <li><strong>Windows / Edge / Chrome：</strong>通过内网 WSUS 或离线包安装最新的 Windows 累积更新（微软 10 月 20 日起通过吊销列表推送封锁），并更新浏览器到最新版本。</li>
+      <li><strong>Firefox：</strong>升级到最新版本（CRLite/OneCRL 会自动下发封锁）。</li>
+      <li><strong>macOS：</strong>安装 10 月 19 日之后的系统安全更新；注意自带 curl/git/python3 使用的 <code>/etc/ssl/cert.pem</code> 需单独处理。</li>
+      <li><strong>开发工具链：</strong>更新 NSS ≥ 3.131.1、certifi ≥ 2026.10.19、Node.js ≥ 22.23.4、Go ≥ 1.26.10 等（完整清单见原站）。</li>
+      <li>检测完成后，请将本页结果截图或导出，交由安全管理员汇总。</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// 12 个测试主机：6 个 TLS 中间 CA × 2 条链（emSign 根 / AAA Certificate Services 交叉签名）
+const HOSTS = [
+  { host: 'dv-g3b-emudhra.we-have-a-problem.com',     label: 'CN=EM DV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'emSign Root TLS CA - G3' },
+  { host: 'dv-g3c-emudhra.we-have-a-problem.com',     label: 'CN=EM DV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'emSign Root TLS CA - G3' },
+  { host: 'ov-g3b-emudhra.we-have-a-problem.com',     label: 'CN=EM OV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'emSign Root TLS CA - G3' },
+  { host: 'ov-g3c-emudhra.we-have-a-problem.com',     label: 'CN=EM OV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'emSign Root TLS CA - G3' },
+  { host: 'ev-g3b-emudhra.we-have-a-problem.com',     label: 'CN=EM EV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'emSign Root TLS CA - G3' },
+  { host: 'ev-g3c-emudhra.we-have-a-problem.com',     label: 'CN=EM EV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'emSign Root TLS CA - G3' },
+  { host: 'dv-g3b-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM DV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'AAA Certificate Services' },
+  { host: 'dv-g3c-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM DV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'AAA Certificate Services' },
+  { host: 'ov-g3b-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM OV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'AAA Certificate Services' },
+  { host: 'ov-g3c-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM OV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'AAA Certificate Services' },
+  { host: 'ev-g3b-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM EV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'AAA Certificate Services' },
+  { host: 'ev-g3c-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM EV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'AAA Certificate Services' },
+];
+const TIMEOUT_MS = 10000;
+
+const resultsBody = document.querySelector('#results tbody');
+const summary = document.getElementById('summary');
+const rerun = document.getElementById('rerun');
+
+function cell(text, cls) {
+  const td = document.createElement('td');
+  td.textContent = text;
+  if (cls) td.className = cls;
+  return td;
+}
+
+async function probe(host) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(`https://${host}/?t=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
+    // 收到任何 HTTP 响应都代表 TLS 握手成功 → 浏览器仍信任被攻陷的中间 CA
+    return { status: 'connected', text: res.ok ? '❌ 已连接（仍信任！）' : `❌ 已连接 (HTTP ${res.status})` };
+  } catch (err) {
+    if (err.name === 'AbortError') return { status: 'unknown', text: '⚠️ 超时，无法确定' };
+    // 浏览器对 TLS 失败与网络错误报错方式相同，统一视为未建立连接
+    return { status: 'blocked', text: '✅ 未连接（已拦截）' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const cells = HOSTS.map(({ host, label, root }) => {
+  const tr = document.createElement('tr');
+  const tdName = document.createElement('td');
+  const a = document.createElement('a');
+  a.href = `https://${host}/`; a.rel = 'noopener'; a.target = '_blank'; a.textContent = label;
+  tdName.appendChild(a);
+  const tdResult = cell('尚未检测', 'result pending');
+  tr.append(tdName, cell(root), tdResult);
+  resultsBody.appendChild(tr);
+  return tdResult;
+});
+
+async function run() {
+  summary.className = 'banner';
+  summary.textContent = '';
+  for (const td of cells) { td.textContent = '检测中…'; td.className = 'result pending'; }
+  const results = await Promise.all(HOSTS.map(async ({ host }, i) => {
+    const r = await probe(host);
+    cells[i].textContent = r.text;
+    cells[i].className = 'result ' + { connected: 'bad', blocked: 'good', unknown: 'pending' }[r.status];
+    return r.status;
+  }));
+  const n = results.filter(s => s === 'connected').length;
+  const unknown = results.filter(s => s === 'unknown').length;
+  summary.classList.add('show');
+  if (n > 0) {
+    summary.classList.add('bad');
+    summary.textContent = `⚠️ 检测到风险：当前浏览器成功连接了 ${n} / ${HOSTS.length} 个测试站点，说明仍信任被攻陷的 emSign 中间 CA，可能受到中间人攻击。请立即更新浏览器和操作系统。` +
+      (unknown ? `（另有 ${unknown} 项超时，结果不完整。）` : '');
+  } else if (unknown > 0) {
+    summary.classList.add('warn');
+    summary.textContent = `未能得出完整结论：${unknown} / ${HOSTS.length} 项连接超时。如果所有项目都超时，本机可能无法访问外网，请改用离线检测脚本 Check-EmSignTrust.ps1。`;
+  } else {
+    summary.classList.add('good');
+    summary.textContent = `✅ 安全：${HOSTS.length} 个测试站点全部被证书验证拦截，当前浏览器已不再信任被攻陷的 emSign 中间 CA。`;
+  }
+}
+
+rerun.addEventListener('click', async () => {
+  rerun.disabled = true;
+  await run();
+  rerun.textContent = '重新检测';
+  rerun.disabled = false;
+});
+
+// 浏览器信息
+document.getElementById('ua').textContent = 'User-Agent: ' + navigator.userAgent;
+(function () {
+  const ua = navigator.userAgent;
+  let hint = '';
+  const m = ua.match(/(?:Chrome|Chromium|Edg)\/(\d+)/);
+  const f = ua.match(/Firefox\/(\d+)/);
+  if (f) hint = `检测到 Firefox ${f[1]}。封锁于 2026-10-17 起通过 CRLite/OneCRL 推送，长期离线的旧版本可能未收到。`;
+  else if (/Edg\//.test(ua)) hint = `检测到 Edge ${m[1]}。依赖 Windows 吊销列表（10-20 起推送）与 CRLSets，长期离线的系统可能未收到。`;
+  else if (m) hint = `检测到 Chrome/Chromium 内核 ${m[1]}。封锁于 2026-10-17 起通过 CRLSets 推送，长期离线的旧版本可能未收到。`;
+  else hint = '未能识别的浏览器，请以在线检测结果为准。';
+  document.getElementById('browser-hint').textContent = hint;
+})();
+</script>
+</body>
+</html>
