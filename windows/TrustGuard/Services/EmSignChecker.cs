@@ -48,10 +48,10 @@ public static class EmSignChecker
         {
             Id = "emsign-ctl",
             Category = "证书信任",
-            Title = "系统吊销列表（Disallowed CTL）封锁状态",
+            Title = "系统吊销列表（本机“不信任名单”）封锁状态",
             Severity = Severity.Critical,
-            Impact = "若系统未收到微软的证书封锁列表，本机浏览器、curl、.NET、OA/业务系统客户端等所有走系统信任存储的程序，都可能被持有泄露私钥的攻击者冒充任意 HTTPS 站点（如内部 OA、业务系统、第三方接口），导致账号口令与敏感数据被窃取。",
-            Fix = "安装 2026-10-20 之后的 Windows 累积更新；内网机器需通过 WSUS/离线补丁包同步吊销列表，或手工导入微软 Disallowed CTL。"
+            Impact = "这是三道防线里唯一能在断网时继续生效的一道：微软把问题证书写进系统的“不信任名单”（Disallowed CTL），凡走系统信任库的程序——浏览器、curl、.NET 业务客户端——都会拒绝这些证书。名单没下发时，断网机器就只剩浏览器自带黑名单可用；若浏览器也很旧，等于三道防线全缺。",
+            Fix = "安装 2026-10-20 之后的 Windows 累积更新（离线 .msu 也可以）；暂时不能打补丁的机器，用程序目录下的 scripts\\block-emsign-certs.ps1 离线把 16 张问题证书导入系统“不信任名单”（支持 -Remove 撤销）。不要直接删根证书，会误伤正常业务。"
         };
         yield return new CheckResult
         {
@@ -223,8 +223,8 @@ public static class EmSignChecker
             {
                 ctl.Status = liveSaysBlocked ? CheckStatus.Info : CheckStatus.Warn;
                 ctl.Detail = liveSaysBlocked
-                    ? "本地未缓存吊销列表（Disallowed CTL 为空），但实测 12 个测试站点全部被拦截：当前依赖 CA 吊销列表（CRL）生效。建议同步微软吊销列表以覆盖离线场景。"
-                    : "未找到本地 Disallowed CTL 缓存，系统可能长期未更新吊销列表。";
+                    ? "本机没有缓存微软的“不信任名单”（Disallowed CTL 为空），断网时这道防线是空的；但实测 12 个测试站点全部被拦截，说明当前靠联网查询 CA 吊销列表（CRL）挡住了。结论：能用，但没上锁——建议按说明第 06 节手工补上名单。"
+                    : "未找到本机“不信任名单”（Disallowed CTL 缓存为空），系统可能长期未更新，断网时无法拦截问题证书。";
                 ctl.Evidence = Truncate(raw, 800);
             }
             else
@@ -234,22 +234,22 @@ public static class EmSignChecker
                 if (ctlMatched >= 12)
                 {
                     ctl.Status = CheckStatus.Pass;
-                    ctl.Detail = $"吊销列表已包含 {ctlMatched}/16 张问题证书，系统信任存储已封锁。";
+                    ctl.Detail = $"本机“不信任名单”已包含 {ctlMatched}/16 张问题证书：系统层面已封锁，断网同样有效。";
                 }
                 else if (ctlMatched > 0)
                 {
                     ctl.Status = CheckStatus.Warn;
-                    ctl.Detail = $"吊销列表仅包含 {ctlMatched}/16 张问题证书，封锁不完整。";
+                    ctl.Detail = $"本机“不信任名单”只包含 {ctlMatched}/16 张问题证书，封锁不完整，建议重新导入或安装最新系统更新。";
                 }
                 else if (liveSaysBlocked)
                 {
                     ctl.Status = CheckStatus.Info;
-                    ctl.Detail = $"吊销列表缓存中暂无问题证书，但实测 12 个测试站点全部被拦截（依赖 CRL 在线吊销检查）。";
+                    ctl.Detail = "本机“不信任名单”中暂无问题证书，但实测 12 个测试站点全部被拦截——目前靠联网查询 CA 吊销列表（CRL）挡住，断网后即失效，建议手工补上名单。";
                 }
                 else
                 {
                     ctl.Status = CheckStatus.Fail;
-                    ctl.Detail = "吊销列表中未发现任何问题证书，且在线探测未能证明已拦截，系统可能仍信任它们。";
+                    ctl.Detail = "本机未收到“不信任名单”，且在线探测仍能连上测试站点：这台电脑现在就可能被冒充的站点骗过，请立即按说明第 06 节处置。";
                 }
                 ctl.Evidence = $"matched={ctlMatched}/16";
             }

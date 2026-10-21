@@ -80,6 +80,32 @@
   </div>
 
   <div class="card">
+    <details>
+      <summary style="cursor:pointer;font-size:16px;font-weight:600;color:#0f172a;list-style:none">
+        📘 这个证书漏洞是怎么回事？（点开看通俗说明）
+      </summary>
+      <div style="margin-top:14px;font-size:13.5px;line-height:1.95;color:#475569">
+        <p style="margin:0 0 10px"><strong style="color:#0f172a">一句话版本：</strong>给网站“发身份证”的机构之一（eMudhra）有 8 张“签发印章”的私钥泄露了，任何人都能拿它伪造任意 HTTPS 网站而不被浏览器报警。厂商从 10 月 17 日起陆续把这些证书拉黑，但“黑名单”要靠更新下发——长期不联网、没人维护的电脑，很可能还停在“信任”状态。</p>
+
+        <p style="margin:0 0 6px"><strong style="color:#0f172a">同一件事，有三道拦网：</strong></p>
+        <p style="margin:0 0 4px">① <strong>CA 吊销名单（CRL/OCSP）</strong>：由 CA 自己发布，浏览器使用时实时去问，需要联网；断网机器这一层等于没有。</p>
+        <p style="margin:0 0 4px">② <strong>浏览器内置黑名单</strong>（Chrome/Edge 的 CRLSets、Firefox 的 CRLite）：随浏览器更新下发，浏览器不更新就不会有。</p>
+        <p style="margin:0 0 10px">③ <strong>系统黑名单</strong>（Windows 的“不信任证书列表”，专业名 Disallowed CTL）：由微软通过 Windows 更新下发，本机缓存后对所有走系统信任库的程序生效，<strong>断网也有效</strong>——这是桌面程序第一项检查的内容。</p>
+
+        <p style="margin:0 0 10px"><strong style="color:#0f172a">所以“吊销列表为空”到底意味着什么？</strong>只说明本机没有缓存微软的黑名单，不代表已经被攻破，也不代表已经处理完：如果在线探测 12 个站点全被拦截，说明至少第 ① 或 ② 道网在起作用；但断网后第 ① 道失效，只剩浏览器黑名单兜底。这一项看的是“离线防线有没有到位”，在线探测回答的是“此刻能不能被冒充”，两者要合起来读。</p>
+
+        <p style="margin:0 0 6px"><strong style="color:#0f172a">如果内网没有统一推送、只能靠人工维护：</strong></p>
+        <p style="margin:0 0 4px">· 优先排查能上外网和收发邮件的电脑，再排查断网专用机（U 盘摆渡风险最高）。</p>
+        <p style="margin:0 0 4px">· 能打补丁的，装 2026-10-20 之后的 Windows 累积更新（可用离线 .msu）；暂时不能打的，用 <code>block-emsign-certs.ps1</code> 离线把 16 张问题证书写进系统“不信任名单”，支持 <code>-Status</code> 查看、<code>-Remove</code> 撤销。</p>
+        <p style="margin:0 0 4px">· 更新浏览器离线包，把第 ② 道网也补上。</p>
+        <p style="margin:0 0 10px">· 指定一台能上网的“更新站”，每季度做一次人工补丁日并留台账；断网机用专用 U 盘、插入前先扫描。</p>
+
+        <p style="margin:0;color:#B45309"><strong>注意：</strong>不要直接删除 emSign 或 AAA 的根证书——AAA Certificate Services 还给很多正常业务签过证书，删根会误伤。用“不信任名单”只封这 16 张，影响面最小且可撤销。</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
     <h2>当前浏览器信息</h2>
     <p class="ua" id="ua"></p>
     <p id="browser-hint" style="margin-bottom:0"></p>

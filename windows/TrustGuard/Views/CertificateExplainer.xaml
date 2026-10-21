@@ -1,0 +1,189 @@
+<UserControl x:Class="TrustGuard.Views.CertificateExplainer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="{StaticResource UiFont}">
+    <UserControl.Resources>
+        <Style x:Key="SectionTag" TargetType="Border">
+            <Setter Property="Background" Value="#EEF3FE"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,1.5"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+        <Style x:Key="TagText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#1D4ED8"/>
+        </Style>
+        <Style x:Key="H2" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#0B1220"/>
+        </Style>
+        <Style x:Key="Body" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="LineHeight" Value="21"/>
+        </Style>
+        <Style x:Key="Bullet" TargetType="TextBlock" BasedOn="{StaticResource Body}">
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+        <Style x:Key="CalloutWarn" TargetType="Border">
+            <Setter Property="Background" Value="#FFFAEB"/>
+            <Setter Property="BorderBrush" Value="#F2D48A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+        <Style x:Key="CalloutInfo" TargetType="Border">
+            <Setter Property="Background" Value="#F4F8FF"/>
+            <Setter Property="BorderBrush" Value="#D6E4FA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+        <Style x:Key="CodeLine" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, monospace"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,3,0,0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource Card}" Padding="22,20" Margin="0,0,0,14">
+        <StackPanel>
+
+            <Border Style="{StaticResource CalloutInfo}" Margin="0,0,0,18">
+                <StackPanel>
+                    <Border Style="{StaticResource SectionTag}">
+                        <TextBlock Text="一句话版本" Style="{StaticResource TagText}"/>
+                    </Border>
+                    <TextBlock Style="{StaticResource Body}" Foreground="#1E3A5F">
+                        <Run Text="给网站“发身份证”的机构之一（eMudhra）有 8 张“签发印章”的私钥泄露了，任何人都能拿它伪造任意 HTTPS 网站而不被浏览器报警。"/>
+                        <LineBreak/>
+                        <Run Text="各家厂商从 10 月 17 日起陆续把这些证书拉黑；但“拉黑名单”要靠更新下发——长期不联网、没人维护的内网电脑，很可能还停在“信任”状态。"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource SectionTag}"><TextBlock Text="01 · 证书是什么" Style="{StaticResource TagText}"/></Border>
+            <TextBlock Style="{StaticResource H2}" Text="网站也会出示“身份证”"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0"
+                       Text="浏览器地址栏里的小锁，靠的是一张数字证书。证书由受信任的机构（CA）签发，作用有两个：证明“这个网站确实是它自己”，以及让浏览器和网站之间的通信加密。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 根证书：浏览器和操作系统出厂就内置的一小批“最高信任机构”，相当于派出所。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 中间证书：根证书授权出去的分支机构，实际给网站签证书，相当于派出所下面的警务室。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 只要这条信任链上任何一环被攻破，攻击者就能给假网站签出“真证书”，浏览器照样显示小锁。"/>
+
+            <Border Style="{StaticResource SectionTag}" Margin="0,18,0,6"><TextBlock Text="02 · 这次出了什么事" Style="{StaticResource TagText}"/></Border>
+            <TextBlock Style="{StaticResource H2}" Text="8 张“签发印章”的私钥可以被还原"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0"
+                       Text="2026 年 10 月 17 日，安全研究者证明 eMudhra 的 8 张中间证书私钥存在生成缺陷——不需要偷，任何人拿到证书本身就能把私钥算回来。这些中间证书一共对应 16 张证书（含两条不同的上级链），签发自 2025 年 4 月，有效期到 2040 年。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 影响：拿到私钥的人可以伪造任意网站的证书，做中间人劫持，窃取账号口令、篡改传输内容。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 时间线：Firefox / Chrome 10 月 17 日封锁；Apple 设备 10 月 19 日；Microsoft 平台 10 月 20 日。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• CA 自己也吊销了这些证书，但“吊销”要靠客户端主动去查，不查就等于不知道。"/>
+
+            <Border Style="{StaticResource SectionTag}" Margin="0,18,0,6"><TextBlock Text="03 · 重点：「系统吊销列表封锁状态」到底在看什么" Style="{StaticResource TagText}"/></Border>
+            <TextBlock Style="{StaticResource H2}" Text="同一件事，有三道不同的“拦网”"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0"
+                       Text="很多人看到“吊销列表为空”就以为“这台电脑没处理”，其实不一定。拦下这张问题证书有三道独立的网，任何一道生效都能挡住攻击："/>
+            <TextBlock Style="{StaticResource Bullet}" Text="① CA 吊销名单（CRL / OCSP）——由 eMudhra 自己发布，浏览器使用时实时去问。要联网才查得到；断网机器这一层等于没有。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="② 浏览器内置黑名单（Chrome/Edge 的 CRLSets、Firefox 的 CRLite）——随浏览器更新或后台组件下发。浏览器不更新就不会有。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="③ 操作系统黑名单（Windows 的“不信任证书列表”，专业名 Disallowed CTL）——由微软通过 Windows 更新下发，本机缓存后对所有走系统信任库的程序生效（包括 curl、.NET 程序、部分业务客户端）。"/>
+            <Border Style="{StaticResource CalloutWarn}" Margin="0,10,0,0">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Body}" Foreground="#7C4A03">
+                        <Run Text="本工具第一项检查的就是第 ③ 道网：本机有没有缓存微软下发的“不信任名单”。" FontWeight="SemiBold"/>
+                        <LineBreak/>
+                        <Run Text="显示“提示 / 未缓存”只代表：Windows 没有把这份名单存在本地。它不等于“这台电脑一定被攻破”，也不等于“已经处理完了”——如果在线探测那一项 12 个站点全部被拦截，说明至少第 ① 或第 ② 道网在起作用。但断网之后第 ① 道就失效，只剩浏览器黑名单和系统黑名单兜底。"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <TextBlock Style="{StaticResource Body}" Margin="0,10,0,0"
+                       Text="换句话说：这一项看的是“本机的离线防线有没有到位”，而不是“现在能不能被攻击”。前者决定断网时安不安全，后者由在线探测回答。两项要合起来读。"/>
+
+            <Border Style="{StaticResource SectionTag}" Margin="0,18,0,6"><TextBlock Text="04 · 三种结果怎么读" Style="{StaticResource TagText}"/></Border>
+            <Border Background="#ECFDF3" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="10" Padding="12,9" Margin="0,4,0,6">
+                <TextBlock Style="{StaticResource Body}" Foreground="#14532D">
+                    <Run Text="✅ 名单已命中 + 在线全拦截" FontWeight="Bold"/><Run Text="　双层防护到位：断网也有系统黑名单兜底，联网还有 CA 吊销名单。这是理想状态。"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#FFFAEB" BorderBrush="#F2D48A" BorderThickness="1" CornerRadius="10" Padding="12,9" Margin="0,0,0,6">
+                <TextBlock Style="{StaticResource Body}" Foreground="#7C4A03">
+                    <Run Text="⚠️ 名单为空 + 在线全拦截" FontWeight="Bold"/><Run Text="　目前靠联网查 CA 吊销名单挡住了。一旦断网、或对方在你和网站之间做手脚，保护就没了。属于“能用但没上锁”，应尽快把系统名单补上。"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#FEF3F2" BorderBrush="#FECDCA" BorderThickness="1" CornerRadius="10" Padding="12,9" Margin="0,0,0,6">
+                <TextBlock Style="{StaticResource Body}" Foreground="#7F1D1D">
+                    <Run Text="❌ 名单为空 + 在线能连上测试站点" FontWeight="Bold"/><Run Text="　真实可利用风险：这台电脑现在就能被冒充的站点骗过。请立即按第 06 节处置。"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12,9">
+                <TextBlock Style="{StaticResource Body}" Foreground="#334155">
+                    <Run Text="⚠️ 全部超时" FontWeight="Bold"/><Run Text="　说明本机连不上外网测试站点，在线结论不可用；此时只能以系统名单检查结果为准，断网机器尤其要当心。"/>
+                </TextBlock>
+            </Border>
+
+            <Border Style="{StaticResource SectionTag}" Margin="0,18,0,6"><TextBlock Text="05 · 对我们的内网意味着什么" Style="{StaticResource TagText}"/></Border>
+            <TextBlock Style="{StaticResource H2}" Text="没有统一推送，就等于名单不会自己长出来"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0"
+                       Text="如果内网没有 WSUS、没有终端管理系统统一推补丁，电脑只在装机时和“业务逼不得已”时才被维护过，那么："/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 微软的系统黑名单大概率没有下发到本机——第 ③ 道网是空的。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 浏览器可能停留在很久以前的版本，第 ② 道网同样不完整。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 能上外网的机器还能靠第 ① 道网临时挡住；纯内网、断网机器三道网可能全缺，风险最高。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 反过来，一旦某台机器被诱导访问了伪造的内部系统登录页，账号口令会直接落到攻击者手里，而且没有任何告警。"/>
+
+            <Border Style="{StaticResource SectionTag}" Margin="0,18,0,6"><TextBlock Text="06 · 处置方案（针对“无统一推送、靠人工维护”）" Style="{StaticResource TagText}"/></Border>
+            <TextBlock Style="{StaticResource H2}" Text="先把“名单”补上，再谈长效机制"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,6,0,0" FontWeight="SemiBold" Foreground="#0B1220" Text="第一步：按优先级排查（半天到两天）"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="1. 先查能上外网的电脑：它们既可能被外部钓鱼，也最容易验证结论。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="2. 再查收发邮件、需要拷入外部文件的电脑：这是最常见的入侵入口。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="3. 最后查断网专用机：它们不会自己中招，但 U 盘一插就可能被“摆渡”，而且完全没有第 ① 道网。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="4. 每台机器用本程序或 Check-EmSignTrust.ps1 跑一遍，把结果导出成报告存档，作为整改基线。"/>
+
+            <TextBlock Style="{StaticResource Body}" Margin="0,12,0,0" FontWeight="SemiBold" Foreground="#0B1220" Text="第二步：把系统黑名单补上（三种办法，按可行性选）"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="A. 装 Windows 累积更新（最正规）：在一台能上网的电脑上下载对应版本的离线补丁（.msu），拷到内网逐台安装。微软 10 月 20 日之后的更新会带上这份名单。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="B. 离线导入“不信任名单”（最快，适合暂时不能打补丁的机器）：用本工具附带的脚本，把 16 张问题证书直接写进 Windows 的 Disallowed 存储，等于手工替微软把这道理做了一遍。脚本就在程序目录 scripts 下："/>
+            <TextBlock Style="{StaticResource CodeLine}" Text="powershell -ExecutionPolicy Bypass -File .\scripts\block-emsign-certs.ps1"/>
+            <TextBlock Style="{StaticResource CodeLine}" Text="powershell -ExecutionPolicy Bypass -File .\scripts\block-emsign-certs.ps1 -Remove   # 撤销"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="C. 更新浏览器：Chrome / Edge / Firefox 都有离线安装包，在内网做一次集中升级，把浏览器自带黑名单也补上。"/>
+            <Border Style="{StaticResource CalloutWarn}" Margin="0,10,0,0">
+                <TextBlock Style="{StaticResource Body}" Foreground="#7C4A03"
+                           Text="注意：不要图省事直接删掉 emSign 或 AAA 的根证书。AAA Certificate Services 还给很多正常业务系统签过证书，删根会误伤；用上面的“不信任名单”只封这 16 张证书，影响面最小，而且可以随时撤销。"/>
+            </Border>
+
+            <TextBlock Style="{StaticResource Body}" Margin="0,12,0,0" FontWeight="SemiBold" Foreground="#0B1220" Text="第三步：没有推送条件，就建立“人工推送”节奏"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 指定一台能上网的电脑作为“更新站”：固定用来下载补丁、浏览器离线包、病毒库和本工具的新版本，U 盘只从这台机器往外发。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 每季度做一次“补丁日”：半天时间，按清单逐台更新并记录（机器名、日期、版本、检测结果），形成可追溯的台账。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 断网机单独一组：专用 U 盘、专用流程，插入前先在更新站全盘扫描；它们的补丁与名单只能靠人带进去。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 新机装机时把“跑一次检测 + 导入名单 + 装最新浏览器”写进装机清单，避免新机器一上线就带着旧状态。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="• 后续如果能上 WSUS 或终端管理系统，优先把这三件事纳入统一推送，人工台账就可以退居备份。"/>
+
+            <Border Style="{StaticResource SectionTag}" Margin="0,18,0,6"><TextBlock Text="07 · 常见疑问" Style="{StaticResource TagText}"/></Border>
+            <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" Foreground="#0B1220" Text="Q：显示“提示 / 未缓存”，是不是说明已经中招了？"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,3,0,8" Text="不是。它只说明本机没有存这份黑名单。是否真的能被冒充，要看在线探测那几项的结果；两者合起来才有意义。"/>
+            <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" Foreground="#0B1220" Text="Q：在线探测全绿，是不是就彻底安全了？"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,3,0,8" Text="只能说明“此刻、这台机器、针对这 12 个测试站点”挡住了。断网机器下次开机可能就失去这层保护，所以名单还是要补。"/>
+            <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" Foreground="#0B1220" Text="Q：导入名单会不会影响业务系统？"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,3,0,8" Text="不会。它只是把 16 张问题证书标记为“不信任”，正常证书不受影响；脚本支持 -Remove 撤销，建议先在一台非关键机器上试点。"/>
+            <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" Foreground="#0B1220" Text="Q：为什么有的电脑浏览器正常，但系统工具（curl、业务客户端）出问题？"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,3,0,8" Text="因为浏览器和操作系统用的是两套信任库。浏览器更新了不代表系统更新了，反之亦然——这也是为什么要三道网一起看。"/>
+            <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" Foreground="#0B1220" Text="Q：这件事会自己好吗？"/>
+            <TextBlock Style="{StaticResource Body}" Margin="0,3,0,0" Text="不会。问题证书的有效期到 2040 年，CA 吊销只对会去查询的客户端有效。只要机器不更新，它就一直信任这张已经被攻破的证书。"/>
+
+            <Border Style="{StaticResource SectionTag}" Margin="0,18,0,6"><TextBlock Text="08 · 术语小抄" Style="{StaticResource TagText}"/></Border>
+            <TextBlock Style="{StaticResource Bullet}" Text="CA：证书颁发机构，负责给网站“发身份证”。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="根证书 / 中间证书：信任链的顶端与分支，中间证书出问题影响面最大。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="CRL / OCSP：CA 发布的“吊销名单”和“在线查询”，客户端要联网去问。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="Disallowed CTL：Windows 的“不信任证书列表”，由微软更新下发，本工具第一项检查的就是它。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="CRLSets / CRLite / OneCRL：Chrome/Edge 与 Firefox 各自内置的黑名单，随浏览器更新下发。"/>
+            <TextBlock Style="{StaticResource Bullet}" Text="中间人攻击：攻击者夹在你和网站之间，假装是网站，从而看到甚至篡改你的数据。"/>
+
+            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12,9" Margin="0,16,0,0">
+                <TextBlock Style="{StaticResource Body}" FontSize="11.5" Foreground="#64748B"
+                           Text="说明：本页内容为面向普通使用者的通俗解释，技术细节与权威结论以 emudhra.we-have-a-problem.com 及各厂商公告为准。检测只在本机进行，不会上传任何数据。"/>
+            </Border>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -39,18 +39,22 @@ Write-Host "==> publishing $Variant build (self-contained single file)"
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
 Write-Host "==> staging distribution folder"
-if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+# Never delete a previous stage (some environments block recursive deletes); use a unique folder instead.
+if (Test-Path $stage) { $stage = "$stage-" + (Get-Date -Format 'HHmmss') }
 New-Item -ItemType Directory -Path $stage | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $stage "scripts") | Out-Null
 
 Copy-Item (Join-Path $publishDir "TrustGuard.exe") $stage
 Copy-Item (Join-Path $root "..\public\downloads\Check-EmSignTrust.ps1") (Join-Path $stage "scripts")
+Copy-Item (Join-Path $root "..\public\downloads\block-emsign-certs.ps1") (Join-Path $stage "scripts")
 Copy-Item (Join-Path $root "..\public\downloads\fingerprints.json") (Join-Path $stage "scripts")
+Copy-Item (Join-Path $root "..\public\downloads\impacted-intermediates.json") (Join-Path $stage "scripts")
 Copy-Item (Join-Path $root "README-Windows.txt") $stage
 
 Write-Host "==> zipping"
 $zip = Join-Path $dist "emsign-trust-check-$Version-windows-x64$suffix.zip"
-if (Test-Path $zip) { Remove-Item $zip -Force }
+# Overwrite via .NET (Compress-Archive -Force deletes first, which some locked-down hosts block).
+if (Test-Path $zip) { [System.IO.File]::Delete($zip) }
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -CompressionLevel Optimal
 
 Write-Host ""

@@ -99,6 +99,18 @@ A single self-contained executable for Windows 10 (1607+) / Windows 11 x64 — n
 **Tab 1 — emSign certificate trust**
 Disallowed CTL fingerprint match (16 certificates) · local CA/ROOT store scan · browser inventory · live TLS probes against the 12 test hosts.
 
+A **plain-language explainer** is built into this tab (`📘 这个证书漏洞是怎么回事？`). It walks a non-specialist through what a certificate is, what actually leaked, why “Disallowed CTL” (the local untrusted list) is not the same thing as “am I currently exploitable”, how to read the four possible result combinations, and a remediation plan for networks **without WSUS or any central update push** — including an offline way to import the blocklist.
+
+![Explainer](docs/screenshot-explainer.png)
+
+**Manual remediation without a patch pipeline.** `block-emsign-certs.ps1` writes the 16 certificates into the local *Disallowed* store, which is exactly what the Microsoft CTL update would do — no Internet, no WSUS, no root-certificate surgery, and reversible:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\block-emsign-certs.ps1 -Status   # what is blocked now
+powershell -ExecutionPolicy Bypass -File .\scripts\block-emsign-certs.ps1            # import (admin)
+powershell -ExecutionPolicy Bypass -File .\scripts\block-emsign-certs.ps1 -Remove    # roll back
+```
+
 **Tab 2 — endpoint scenarios**
 Pick the machine profile (intranet PC / Internet-facing PC / USB-only air-gapped PC / BYOD laptop); the verdict counts only the checks relevant to it. 16 checks cover: OS support status (LTSC-aware), patch staleness, AV/signature health, firewall profiles, RDP exposure, SMBv1 + signing, Print Spooler/Point-and-Print, account policy, local shares, USB/autoplay, legacy TLS/WDigest/NTLM, remote-control software, BitLocker, domain/MDM enrollment, update source, Internet reachability. Every row carries a severity chip, a plain-language business impact and a remediation step.
 

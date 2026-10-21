@@ -89,6 +89,29 @@
                 </Setter>
             </Style>
 
+            <Style x:Key="ExplainButton" TargetType="ToggleButton">
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="HorizontalAlignment" Value="Left"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="bd" Background="#EEF3FE" BorderBrush="#D6E4FA" BorderThickness="1"
+                                    CornerRadius="18" Padding="16,8">
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="#E3EDFE"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="#DBE9FD"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style x:Key="ElevateButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding IsAdmin}" Value="True">

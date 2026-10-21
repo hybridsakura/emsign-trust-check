@@ -14,9 +14,23 @@ public partial class MainWindow : Window
         DataContext = _vm;
         ApplyBranding();
 
-        // Support shortcut for support staff: start on the scenario tab
-        if (Environment.GetCommandLineArgs().Any(a => a.Equals("--tab2", StringComparison.OrdinalIgnoreCase)))
+        // Support shortcuts for support staff
+        var args = Environment.GetCommandLineArgs();
+        if (args.Any(a => a.Equals("--tab2", StringComparison.OrdinalIgnoreCase)))
             MainTabs.SelectedIndex = 1;
+
+        ExplainToggle.Checked += (_, _) =>
+        {
+            ExplainPanel.Visibility = Visibility.Visible;
+            ExplainToggle.Content = "📘 收起说明";
+        };
+        ExplainToggle.Unchecked += (_, _) =>
+        {
+            ExplainPanel.Visibility = Visibility.Collapsed;
+            ExplainToggle.Content = "📘 这个证书漏洞是怎么回事？（点开看通俗说明）";
+        };
+        if (args.Any(a => a.Equals("--explain", StringComparison.OrdinalIgnoreCase)))
+            ExplainToggle.IsChecked = true;
 
         Loaded += async (_, _) =>
         {
