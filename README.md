@@ -1,5 +1,8 @@
 # emsign-trust-check
 
+[![CI](https://github.com/hybridsakura/emsign-trust-check/actions/workflows/ci.yml/badge.svg)](https://github.com/hybridsakura/emsign-trust-check/actions/workflows/ci.yml)
+[![Release](https://github.com/hybridsakura/emsign-trust-check/actions/workflows/release.yml/badge.svg)](https://github.com/hybridsakura/emsign-trust-check/actions/workflows/release.yml)
+
 A self-hostable, intranet-friendly checker for the **October 2026 eMudhra intermediate CA compromise** ("emSign certificate vulnerability"). It detects whether browsers on your network still trust the eight compromised eMudhra intermediate CAs (16 certificates including the Sectigo cross-signs).
 
 Inspired by and data-sourced from [emudhra.we-have-a-problem.com](https://emudhra.we-have-a-problem.com/).
@@ -13,10 +16,10 @@ The compromised intermediates were blocked by Firefox/Chrome (Oct 17), Apple (Oc
 Two front ends share one purpose:
 
 - **Web (Linux / Docker)** — a static page served by nginx; opens in any intranet browser.
-- **Windows portable app (`TrustGuard.exe`)** — a self-contained WPF GUI (no installer, no .NET runtime needed) for hospital endpoints, with green/red status lights and two tabs: emSign certificate checks and hospital-scenario risks.
+- **Windows portable app (`TrustGuard.exe`)** — a self-contained WPF GUI (no installer, no .NET runtime needed) with green/red status lights and two tabs: emSign certificate checks and endpoint configuration risks.
 
 ![emSign tab](docs/screenshot-emsign.png)
-![Hospital scenarios tab](docs/screenshot-hospital.png)
+![Endpoint scenarios tab](docs/screenshot-scenarios.png)
 
 | Path | Description |
 |---|---|
@@ -91,13 +94,13 @@ docker run --rm --network none emsign-trust-check:1.0.0 sh -c 'wget -qO- http://
 
 ## Windows portable app (`TrustGuard.exe`)
 
-A single self-contained executable for Windows 10 (1607+) / Windows 11 x64 — no installer, no .NET runtime, no admin rights required to start. Built with C# + WPF (chosen over a web wrapper because hospital endpoints are often air-gapped and may lack WebView2; .NET 8 self-contained removes every runtime dependency).
+A single self-contained executable for Windows 10 (1607+) / Windows 11 x64 — no installer, no .NET runtime, no admin rights required to start. Built with C# + WPF (chosen over a web wrapper because managed endpoints are often air-gapped and may lack WebView2; .NET 8 self-contained removes every runtime dependency).
 
 **Tab 1 — emSign certificate trust**
 Disallowed CTL fingerprint match (16 certificates) · local CA/ROOT store scan · browser inventory · live TLS probes against the 12 test hosts.
 
-**Tab 2 — hospital business scenarios**
-Pick the machine profile (intranet PC / Internet-facing PC / USB-only air-gapped PC / BYOD laptop on the hospital network); the verdict counts only the checks relevant to it. 16 checks cover: OS support status (LTSC-aware), patch staleness, AV/signature health, firewall profiles, RDP exposure, SMBv1 + signing, Print Spooler/Point-and-Print, account policy, local shares, USB/autoplay, legacy TLS/WDigest/NTLM, remote-control software, BitLocker, domain/MDM enrollment, update source, Internet reachability. Every row carries a severity chip, a plain-language business impact and a remediation step.
+**Tab 2 — endpoint scenarios**
+Pick the machine profile (intranet PC / Internet-facing PC / USB-only air-gapped PC / BYOD laptop); the verdict counts only the checks relevant to it. 16 checks cover: OS support status (LTSC-aware), patch staleness, AV/signature health, firewall profiles, RDP exposure, SMBv1 + signing, Print Spooler/Point-and-Print, account policy, local shares, USB/autoplay, legacy TLS/WDigest/NTLM, remote-control software, BitLocker, domain/MDM enrollment, update source, Internet reachability. Every row carries a severity chip, a plain-language business impact and a remediation step.
 
 **Status lights**: green = pass, red = fail, amber = needs attention, grey = informational. An empty Disallowed CTL counts as informational when the live probes already prove the chains are blocked (CA-side CRL), instead of raising a false alarm.
 
@@ -107,11 +110,11 @@ Pick the machine profile (intranet PC / Internet-facing PC / USB-only air-gapped
 
 ```powershell
 TrustGuard.exe                                                            # GUI
-TrustGuard.exe --tab2                                                     # open on the hospital tab
+TrustGuard.exe --tab2                                                     # open on the scenarios tab
 TrustGuard.exe --selftest --out C:\temp\report.json                       # headless, exit 1 if anything failed
 ```
 
-GUI export writes a self-contained HTML report to the Desktop — the intended way to hand results to hospital IT/security.
+GUI export writes a self-contained HTML report to the Desktop — the intended way to hand results to the security team.
 
 Build (build machine only needs the .NET 8 SDK):
 
@@ -120,7 +123,36 @@ powershell -ExecutionPolicy Bypass -File windows\build-win.ps1 -Version 1.0.0
 # -> dist\emsign-trust-check-1.0.0-windows-x64.zip (~60 MB)
 ```
 
-The exe is unsigned, so SmartScreen may warn on first launch ("More info → Run anyway"); sign it with your hospital's code-signing certificate for fleet rollout.
+The exe is unsigned, so SmartScreen may warn on first launch ("More info → Run anyway"); sign it with your organisation's code-signing certificate for fleet rollout.
+
+### Build variants
+
+| Variant | Command | Contents |
+|---|---|---|
+| `Public` (default) | `./windows/build-win.ps1` | industry-neutral copy, safe to publish |
+| `Internal` | `./windows/build-win.ps1 -Variant Internal` | adds organisation footer, signature and tech-support line sourced from `Branding/InternalBranding.local.cs` |
+
+The internal branding file is **git-ignored** and never ships in this repository. `scripts/check-no-industry-terms.sh` (also run by CI) greps the tracked tree and fails if organisation- or industry-specific wording leaks into the public sources.
+
+## CI/CD
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | push to `main`, PR, manual | hygiene scan → Windows single-file build + headless self-test → Linux bundles → Docker image smoke test **with networking disabled** |
+| `release.yml` | tag `v*` (or manual) | builds both packages, publishes a GitHub Release with `SHA256SUMS`, and pushes the image to `ghcr.io/hybridsakura/emsign-trust-check` |
+
+Cut a release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Pull the published image:
+
+```bash
+docker run -d -p 8080:80 ghcr.io/hybridsakura/emsign-trust-check:latest
+```
 
 ## Offline checking (Windows, no Internet)
 

@@ -8,10 +8,10 @@ using TrustGuard.Models;
 namespace TrustGuard.Services;
 
 /// <summary>
-/// Hospital-oriented risk checks. All checks work offline; nothing is uploaded.
+/// Endpoint configuration risk checks. All checks work offline; nothing is uploaded.
 /// Machine profiles: intranet PC / Internet-facing PC / USB-only air-gapped PC / BYOD laptop.
 /// </summary>
-public static class HospitalChecker
+public static class EndpointChecker
 {
     private static readonly HashSet<MachineProfile> Portable = new()
         { MachineProfile.Byod, MachineProfile.InternetFacing };
@@ -25,8 +25,8 @@ public static class HospitalChecker
             Title = "操作系统版本与支持状态",
             Severity = Severity.Critical,
             RelevanceHint = "Windows 10 已于 2025-10-14 结束支持",
-            Impact = "医院终端若停留在已停止支持的 Windows 10，将不再获得任何安全补丁；一旦被利用（如勒索软件横向移动），HIS/LIS/PACS 业务可能整体瘫痪，且等保测评直接不通过。",
-            Fix = "升级到 Windows 11 或购买 Windows 10 ESU；无法升级的医疗设备专用机应做网络隔离与白名单管控。"
+            Impact = "终端若停留在已停止支持的 Windows 10，将不再获得任何安全补丁；一旦被利用（如勒索软件横向移动），核心业务系统可能整体瘫痪，合规测评也无法通过。",
+            Fix = "升级到 Windows 11 或购买 Windows 10 ESU；无法升级的专用设备应做网络隔离与白名单管控。"
         };
         yield return new CheckResult
         {
@@ -34,7 +34,7 @@ public static class HospitalChecker
             Category = "系统与补丁",
             Title = "最近一次安全更新距今时间",
             Severity = Severity.High,
-            Impact = "长期不装补丁的终端是勒索病毒与横向渗透的首选跳板。医院内网一旦被横向移动，影响面从单台电脑扩大到全院业务系统；断网优盘机则可能把病毒通过 U 盘带入隔离区。",
+            Impact = "长期不装补丁的终端是勒索病毒与横向渗透的首选跳板。内网一旦被横向移动，影响面会从单台终端扩大到整个业务网段；断网终端还可能把病毒通过 U 盘带入隔离区。",
             Fix = "内网机器通过 WSUS/离线补丁包保持季度内更新；外网机器开启自动更新；断网机建立离线补丁与病毒库更新流程。"
         };
         yield return new CheckResult
@@ -43,7 +43,7 @@ public static class HospitalChecker
             Category = "防护与更新",
             Title = "杀毒软件与病毒库状态",
             Severity = Severity.Critical,
-            Impact = "医院终端缺少实时防护或病毒库过期时，U 盘摆渡、钓鱼邮件附件、共享目录投毒都可能直接落地执行，进而加密病历文件或窃取患者信息。",
+            Impact = "终端缺少实时防护或病毒库过期时，U 盘摆渡、钓鱼邮件附件、共享目录投毒都可能直接落地执行，进而加密业务文件或窃取敏感数据。",
             Fix = "确保 Windows Defender 实时保护开启且病毒库 7 天内更新；使用第三方 EDR 的终端应确认其服务与驱动正常运行。"
         };
         yield return new CheckResult
@@ -61,7 +61,7 @@ public static class HospitalChecker
             Category = "网络暴露面",
             Title = "远程桌面（RDP）暴露情况",
             Severity = Severity.High,
-            Impact = "医院内网大量终端开启 3389 且使用弱口令时，极易被暴力破解后作为跳板进入 HIS 网段，是近年医院勒索事件最常见的入口之一。",
+            Impact = "内网大量终端开启 3389 且使用弱口令时，极易被暴力破解后作为跳板进入核心业务网段，是近年勒索事件最常见的入口之一。",
             Fix = "非必要关闭远程桌面；必须使用时启用网络级身份验证（NLA）、限制来源 IP、使用强口令并纳入堡垒机审计。"
         };
         yield return new CheckResult
@@ -79,7 +79,7 @@ public static class HospitalChecker
             Category = "网络暴露面",
             Title = "打印服务与 Point-and-Print 策略",
             Severity = Severity.High,
-            Impact = "医院普遍部署共享打印/自助报告机，Print Spooler 相关漏洞（PrintNightmare 类）可让普通用户以 SYSTEM 权限执行代码，直接获取终端控制权。",
+            Impact = "共享打印与自助终端普遍存在，Print Spooler 相关漏洞（PrintNightmare 类）可让普通用户以 SYSTEM 权限执行代码，直接获取终端控制权。",
             Fix = "关闭非必需终端上的 Print Spooler 服务；启用 PointAndPrint 的 RestrictDriverInstallationToAdministrators=1 并限制驱动服务器。"
         };
         yield return new CheckResult
@@ -88,7 +88,7 @@ public static class HospitalChecker
             Category = "身份与访问",
             Title = "账户与口令策略",
             Severity = Severity.High,
-            Impact = "Guest 启用、无锁定阈值、口令长度不足，会让攻击者用简单字典爆破进入工作站，进而接触病历与医保结算数据。",
+            Impact = "Guest 启用、无锁定阈值、口令长度不足，会让攻击者用简单字典爆破进入工作站，进而接触业务数据与结算信息。",
             Fix = "禁用 Guest 与内置 Administrator；口令长度 ≥ 8 且启用复杂度；账户锁定阈值 ≤ 5 次；定期清理离职人员账号。"
         };
         yield return new CheckResult
@@ -97,7 +97,7 @@ public static class HospitalChecker
             Category = "身份与访问",
             Title = "本机共享目录暴露",
             Severity = Severity.Medium,
-            Impact = "科室自建共享往往权限过宽（Everyone 可读写），勒索病毒可直接加密共享内容，患者资料也可能被任意调阅。",
+            Impact = "部门自建共享往往权限过宽（Everyone 可读写），勒索病毒可直接加密共享内容，业务数据也可能被任意调阅。",
             Fix = "清理非必要共享；必须共享时按岗位最小权限授权，禁用 Everyone 写权限，并纳入备份与审计。"
         };
         yield return new CheckResult
@@ -107,7 +107,7 @@ public static class HospitalChecker
             Title = "USB 存储与自动播放策略",
             Severity = Severity.High,
             RelevanceHint = "U 盘摆渡是断网区主要感染途径",
-            Impact = "允许任意 U 盘读写且开启自动播放时，摆渡病毒可在断网优盘机之间传播；医院检验、影像科室的离线设备常因此成为盲区。",
+            Impact = "允许任意 U 盘读写且开启自动播放时，摆渡病毒可在断网优盘机之间传播；检验、影像等离线设备常因此成为盲区。",
             Fix = "通过组策略将可移动存储设为只读或禁用；关闭自动播放；保留经审批的专用摆渡 U 盘并做病毒扫描。"
         };
         yield return new CheckResult
@@ -116,7 +116,7 @@ public static class HospitalChecker
             Category = "协议与凭据",
             Title = "遗留协议与凭据保护（TLS 1.0/WDigest/NTLM）",
             Severity = Severity.High,
-            Impact = "启用 TLS 1.0/1.1、WDigest 明文缓存凭据或允许 NTLMv1，会让攻击者在同网段嗅探到域账号口令，直接威胁 HIS 域环境。",
+            Impact = "启用 TLS 1.0/1.1、WDigest 明文缓存凭据或允许 NTLMv1，会让攻击者在同网段嗅探到域账号口令，直接威胁核心业务域环境。",
             Fix = "禁用 TLS 1.0/1.1 与 SSL；设置 WDigest UseLogonCredential=0；LmCompatibilityLevel ≥ 5（仅发送 NTLMv2 并拒绝 LM）。"
         };
         yield return new CheckResult
@@ -125,8 +125,8 @@ public static class HospitalChecker
             Category = "第三方软件",
             Title = "远程控制软件安装情况",
             Severity = Severity.Medium,
-            Impact = "未经授权的 TeamViewer / 向日葵 / ToDesk 等远控工具可绕过边界防护直接操作院内终端，是患者数据外泄与勒索投毒的常见通道。",
-            Fix = "卸载非授权远控软件；确需远程运维时使用堡垒机或院内统一的运维通道，并保留审计日志。"
+            Impact = "未经授权的 TeamViewer / 向日葵 / ToDesk 等远控工具可绕过边界防护直接操作内网终端，是敏感数据外泄与勒索投毒的常见通道。",
+            Fix = "卸载非授权远控软件；确需远程运维时使用堡垒机或统一运维通道，并保留审计日志。"
         };
         yield return new CheckResult
         {
@@ -135,8 +135,8 @@ public static class HospitalChecker
             Title = "磁盘加密（BitLocker）状态",
             Severity = Severity.High,
             RelevantProfiles = Portable,
-            Impact = "自带笔记本或移动工作站遗失、被带离医院时，未加密磁盘上的病历缓存、导出报表可被直接读取，构成患者隐私泄露事件。",
-            Fix = "对笔记本与移动终端启用 BitLocker（含 TPM+PIN），恢复密钥托管到 AD/院内密钥库。"
+            Impact = "自带笔记本或移动工作站遗失、被带离办公场所时，未加密磁盘上的业务缓存、导出报表可被直接读取，构成数据泄露事件。",
+            Fix = "对笔记本与移动终端启用 BitLocker（含 TPM+PIN），恢复密钥托管到 AD 或统一密钥库。"
         };
         yield return new CheckResult
         {
@@ -144,9 +144,9 @@ public static class HospitalChecker
             Category = "终端与数据",
             Title = "域加入与终端纳管状态",
             Severity = Severity.Medium,
-            RelevanceHint = "自带设备接入医院网络需纳管",
-            Impact = "未加入域、未纳入 MDM/终端管理系统的设备接入医院网络后，补丁、杀毒、外设策略均无法统一管控，成为合规与安全的双重盲区。",
-            Fix = "院内终端统一加域并由组策略管理；BYOD 设备接入前完成登记、安装 EDR 并划分到隔离 VLAN。"
+            RelevanceHint = "自带设备接入内网需纳管",
+            Impact = "未加入域、未纳入 MDM/终端管理系统的设备接入内网后，补丁、杀毒、外设策略均无法统一管控，成为合规与安全的双重盲区。",
+            Fix = "内网终端统一加域并由组策略管理；BYOD 设备接入前完成登记、安装 EDR 并划分到隔离 VLAN。"
         };
         yield return new CheckResult
         {
@@ -154,8 +154,8 @@ public static class HospitalChecker
             Category = "系统与补丁",
             Title = "补丁来源与更新通道",
             Severity = Severity.Medium,
-            Impact = "断网或半隔离终端没有可用更新源时，系统与病毒库会持续落后；医院常见「内网 WSUS 未覆盖」导致补丁断层。",
-            Fix = "部署院内 WSUS/离线更新服务器并覆盖全部网段；断网区建立定期离线补丁与病毒库导入流程。"
+            Impact = "断网或半隔离终端没有可用更新源时，系统与病毒库会持续落后；常见「内网 WSUS 未覆盖」导致补丁断层。",
+            Fix = "部署内网 WSUS/离线更新服务器并覆盖全部网段；断网区建立定期离线补丁与病毒库导入流程。"
         };
         yield return new CheckResult
         {
@@ -695,7 +695,7 @@ $mdm = Test-Path 'HKLM:\SOFTWARE\Microsoft\Enrollments'
         else
         {
             c.Status = CheckStatus.Warn;
-            c.Detail = "未加入域（工作组模式），补丁、杀毒与外设策略无法统一管控。BYOD 设备接入院内网络前应完成登记与纳管。";
+            c.Detail = "未加入域（工作组模式），补丁、杀毒与外设策略无法统一管控。BYOD 设备接入内网前应完成登记与纳管。";
         }
         c.Evidence = ps;
     }
@@ -709,7 +709,7 @@ $mdm = Test-Path 'HKLM:\SOFTWARE\Microsoft\Enrollments'
         if (!string.IsNullOrWhiteSpace(wsus))
         {
             c.Status = CheckStatus.Pass;
-            c.Detail = $"已配置院内更新源（WSUS）：{wsus}。";
+            c.Detail = $"已配置内网更新源（WSUS）：{wsus}。";
         }
         else if (auOptions is 3 or 4)
         {
@@ -719,7 +719,7 @@ $mdm = Test-Path 'HKLM:\SOFTWARE\Microsoft\Enrollments'
         else if (online)
         {
             c.Status = CheckStatus.Info;
-            c.Detail = "未配置统一更新源，使用系统默认更新策略（本机可访问互联网）。医院环境建议改为院内 WSUS 统一管控。";
+            c.Detail = "未配置统一更新源，使用系统默认更新策略（本机可访问互联网）。建议改为内网 WSUS 统一管控。";
         }
         else
         {

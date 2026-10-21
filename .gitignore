@@ -3,6 +3,11 @@ dist/
 *.tar.gz
 *.zip
 
+# internal-only branding (never publish: contains organisation details)
+windows/TrustGuard/Branding/InternalBranding.local.cs
+dist/*internal*
+scripts/build-internal.sh
+
 # .NET build output
 windows/**/bin/
 windows/**/obj/

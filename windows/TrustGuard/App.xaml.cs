@@ -33,12 +33,12 @@ public partial class App : Application
         if (idx >= 0 && idx + 1 < args.Length) outPath = args[idx + 1];
 
         var em = EmSignChecker.CreateChecks().ToList();
-        var hp = HospitalChecker.CreateChecks().ToList();
+        var hp = EndpointChecker.CreateChecks().ToList();
         var noop = new Progress<CheckResult>(_ => { });
 
         await Task.WhenAll(
             EmSignChecker.RunAllAsync(em, noop),
-            HospitalChecker.RunAllAsync(hp, noop));
+            EndpointChecker.RunAllAsync(hp, noop));
 
         string OsText()
         {
@@ -66,7 +66,7 @@ public partial class App : Application
             isAdmin = Elevation.IsAdministrator(),
             timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             emSign = em.Select(Map),
-            hospital = hp.Select(Map)
+            scenarios = hp.Select(Map)
         };
 
         var json = JsonSerializer.Serialize(report, new JsonSerializerOptions

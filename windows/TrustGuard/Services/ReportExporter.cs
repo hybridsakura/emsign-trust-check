@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Web;
+using TrustGuard.Branding;
 using TrustGuard.Models;
 using TrustGuard.ViewModels;
 
@@ -39,15 +40,24 @@ pre{background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:8px 10
 .footer{color:#94a3b8;font-size:12px;margin-top:26px}
 </style></head><body><div class="wrap">
 """);
-        sb.Append($"<h1>TrustGuard 医院终端安全检测报告</h1>");
+        var brand = AppBranding.Current;
+        sb.Append($"<h1>{HttpUtility.HtmlEncode(brand.ReportTitle)}</h1>");
         sb.Append($"<div class=\"meta\">计算机：{HttpUtility.HtmlEncode(vm.MachineName)} · 系统：{HttpUtility.HtmlEncode(vm.OsText)} · " +
                   $"权限：{HttpUtility.HtmlEncode(vm.AdminText)} · 场景：{HttpUtility.HtmlEncode(vm.SelectedProfile.Name)} · " +
                   $"生成时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}</div>");
 
         AppendSection(sb, "一、emSign / eMudhra 证书信任检测", vm.EmSignChecks);
-        AppendSection(sb, "二、医院业务场景风险检测", vm.HospitalChecks);
+        AppendSection(sb, "二、终端场景风险检测", vm.ScenarioChecks);
 
         sb.Append("<div class=\"footer\">本报告由 TrustGuard 在本地生成，未上传任何数据。证书指纹数据来源：emudhra.we-have-a-problem.com。</div>");
+        if (brand.IsInternal)
+        {
+            sb.Append("<div style=\"margin-top:18px;padding-top:12px;border-top:1px solid #e7ebf3;text-align:right;color:#64748b;font-size:12.5px;line-height:1.9\">");
+            sb.Append($"<div>{HttpUtility.HtmlEncode(brand.FooterOrg)}</div>");
+            sb.Append($"<div>署名：{HttpUtility.HtmlEncode(brand.FooterSigner)}</div>");
+            sb.Append($"<div>{HttpUtility.HtmlEncode(brand.FooterTech)}</div>");
+            sb.Append("</div>");
+        }
         sb.Append("</div></body></html>");
 
         File.WriteAllText(path, sb.ToString(), new UTF8Encoding(true));

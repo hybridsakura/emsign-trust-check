@@ -8,7 +8,7 @@ public enum CheckStatus { NotRun, Running, Pass, Fail, Warn, Info }
 
 public enum Severity { Critical, High, Medium, Low, Info }
 
-/// <summary>医院终端场景画像。</summary>
+/// <summary>终端场景画像。</summary>
 public enum MachineProfile { Intranet, InternetFacing, AirGapped, Byod }
 
 public sealed class CheckResult : INotifyPropertyChanged

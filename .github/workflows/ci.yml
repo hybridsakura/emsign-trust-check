@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore: [ '**/*.md' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    name: Open-source hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject industry-specific wording
+        run: |
+          chmod +x scripts/check-no-industry-terms.sh
+          ./scripts/check-no-industry-terms.sh
+
+  windows:
+    name: Windows portable exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build public variant
+        shell: pwsh
+        run: ./windows/build-win.ps1 -Version 0.0.0-ci -Variant Public
+
+      - name: Smoke test (headless self-check)
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist/TrustGuard-0.0.0-ci-win-x64/TrustGuard.exe
+          & $exe.FullName --selftest --out "$env:RUNNER_TEMP/report.json"
+          if (-not (Test-Path "$env:RUNNER_TEMP/report.json")) { throw "self-test produced no report" }
+          Get-Content "$env:RUNNER_TEMP/report.json" -TotalCount 5
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/*windows-x64.zip
+          if-no-files-found: error
+
+  linux:
+    name: Linux bundles + Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build offline bundles
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/build-offline-bundle.sh 0.0.0-ci
+
+      - name: Prove the container works with networking disabled
+        run: |
+          docker run --rm --network none emsign-trust-check:0.0.0-ci \
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/ | grep -qi "<title>"'
+          docker run --rm --network none emsign-trust-check:0.0.0-ci \
+            sh -c 'ls /usr/share/nginx/html/downloads/Check-EmSignTrust.ps1'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-bundles
+          path: dist/*.tar.gz
+          if-no-files-found: error

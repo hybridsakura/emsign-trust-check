@@ -9,7 +9,7 @@
     <AssemblyName>TrustGuard</AssemblyName>
     <RootNamespace>TrustGuard</RootNamespace>
     <Version>1.0.0</Version>
-    <Product>TrustGuard 医院终端安全检测</Product>
+    <Product>TrustGuard 终端安全检测</Product>
     <Company>TrustGuard</Company>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
 
@@ -23,6 +23,19 @@
     <DebugType>none</DebugType>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <!-- Variant=Internal compiles the local, git-ignored branding file (organisation footer, names). -->
+  <PropertyGroup Condition="'$(Variant)' == ''">
+    <Variant>Public</Variant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Variant)' == 'Internal'">
+    <DefineConstants>$(DefineConstants);INTERNAL</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Branding\InternalBranding.local.cs" />
+    <Compile Include="Branding\InternalBranding.local.cs" Condition="'$(Variant)' == 'Internal'" />
+  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Assets\app.ico" />

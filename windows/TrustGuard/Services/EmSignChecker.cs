@@ -50,7 +50,7 @@ public static class EmSignChecker
             Category = "证书信任",
             Title = "系统吊销列表（Disallowed CTL）封锁状态",
             Severity = Severity.Critical,
-            Impact = "若系统未收到微软的证书封锁列表，本机浏览器、curl、.NET、OA/电子病历客户端等所有走系统信任存储的程序，都可能被持有泄露私钥的攻击者冒充任意 HTTPS 站点（如院内 OA、PACS 影像、医保接口），导致账号口令与患者数据被窃取。",
+            Impact = "若系统未收到微软的证书封锁列表，本机浏览器、curl、.NET、OA/业务系统客户端等所有走系统信任存储的程序，都可能被持有泄露私钥的攻击者冒充任意 HTTPS 站点（如内部 OA、业务系统、第三方接口），导致账号口令与敏感数据被窃取。",
             Fix = "安装 2026-10-20 之后的 Windows 累积更新；内网机器需通过 WSUS/离线补丁包同步吊销列表，或手工导入微软 Disallowed CTL。"
         };
         yield return new CheckResult
@@ -68,7 +68,7 @@ public static class EmSignChecker
             Category = "证书信任",
             Title = "浏览器版本与证书封锁推送",
             Severity = Severity.Medium,
-            Impact = "医院内外网电脑若长期不更新浏览器，将收不到 Chrome/Edge 的 CRLSets 与 Firefox 的 CRLite 封锁数据，访问被冒充的院内/第三方站点时不会有任何告警。",
+            Impact = "内外网终端若长期不更新浏览器，将收不到 Chrome/Edge 的 CRLSets 与 Firefox 的 CRLite 封锁数据，访问被冒充的内部/第三方站点时不会有任何告警。",
             Fix = "将 Chrome / Edge / Firefox 升级到最新版本；纯内网机器需部署离线升级包。"
         };
         yield return new CheckResult

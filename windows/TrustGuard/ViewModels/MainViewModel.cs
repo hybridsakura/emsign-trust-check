@@ -7,6 +7,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Win32;
+using TrustGuard.Branding;
 using TrustGuard.Models;
 using TrustGuard.Services;
 
@@ -115,19 +116,26 @@ public sealed record ProfileOption(MachineProfile Value, string Name, string Tip
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     public ObservableCollection<CheckResult> EmSignChecks { get; }
-    public ObservableCollection<CheckResult> HospitalChecks { get; }
-    public ICollectionView HospitalView { get; }
+    public ObservableCollection<CheckResult> ScenarioChecks { get; }
+    public ICollectionView ScenarioView { get; }
 
     public CheckVerdict EmSignVerdict { get; } = new();
-    public CheckVerdict HospitalVerdict { get; } = new();
+    public CheckVerdict ScenarioVerdict { get; } = new();
+
+    private static readonly BrandConfig Brand = AppBranding.Current;
 
     public IReadOnlyList<ProfileOption> Profiles { get; } = new[]
     {
-        new ProfileOption(MachineProfile.Intranet, "医院内网电脑", "无法访问互联网的院内办公/业务终端：重点是横向移动、共享与 U 盘摆渡。"),
-        new ProfileOption(MachineProfile.InternetFacing, "医院外网电脑", "可访问互联网的终端：重点是钓鱼、浏览器漏洞与外部扫描入口。"),
-        new ProfileOption(MachineProfile.AirGapped, "断网优盘电脑", "仅靠 U 盘交换数据的隔离终端：重点是介质管控、自动播放与离线补丁。"),
-        new ProfileOption(MachineProfile.Byod, "自带笔记本（接入院内网）", "个人设备接入医院网络：重点是纳管状态、磁盘加密与未授权远控。"),
+        new ProfileOption(MachineProfile.Intranet, Brand.ProfileNames[0], Brand.ProfileTips[0]),
+        new ProfileOption(MachineProfile.InternetFacing, Brand.ProfileNames[1], Brand.ProfileTips[1]),
+        new ProfileOption(MachineProfile.AirGapped, Brand.ProfileNames[2], Brand.ProfileTips[2]),
+        new ProfileOption(MachineProfile.Byod, Brand.ProfileNames[3], Brand.ProfileTips[3]),
     };
+
+    public bool IsInternal => Brand.IsInternal;
+    public string FooterOrg => Brand.FooterOrg;
+    public string FooterSigner => Brand.FooterSigner;
+    public string FooterTech => Brand.FooterTech;
 
     private ProfileOption _profile;
     private bool _isRunning;
@@ -139,13 +147,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public MainViewModel()
     {
         EmSignChecks = new ObservableCollection<CheckResult>(EmSignChecker.CreateChecks());
-        HospitalChecks = new ObservableCollection<CheckResult>(HospitalChecker.CreateChecks());
+        ScenarioChecks = new ObservableCollection<CheckResult>(EndpointChecker.CreateChecks());
         _profile = Profiles[0];
 
-        var view = new ListCollectionView(HospitalChecks) { GroupDescriptions = { new PropertyGroupDescription("Category") } };
-        HospitalView = view;
+        var view = new ListCollectionView(ScenarioChecks) { GroupDescriptions = { new PropertyGroupDescription("Category") } };
+        ScenarioView = view;
 
-        foreach (var c in EmSignChecks.Concat(HospitalChecks)) c.Profile = _profile.Value;
+        foreach (var c in EmSignChecks.Concat(ScenarioChecks)) c.Profile = _profile.Value;
 
         IsAdmin = Elevation.IsAdministrator();
         OsText = ReadOs();
@@ -156,7 +164,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OpenOfflineScriptsCommand = new RelayCommand(_ => OpenScripts());
 
         EmSignVerdict.Update(EmSignChecks);
-        HospitalVerdict.Update(HospitalChecks);
+        ScenarioVerdict.Update(ScenarioChecks);
     }
 
     public ProfileOption SelectedProfile
@@ -166,11 +174,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (value is null || value == _profile) return;
             _profile = value;
-            foreach (var c in EmSignChecks.Concat(HospitalChecks)) c.Profile = value.Value;
+            foreach (var c in EmSignChecks.Concat(ScenarioChecks)) c.Profile = value.Value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ProfileTip));
             EmSignVerdict.Update(EmSignChecks);
-            HospitalVerdict.Update(HospitalChecks);
+            ScenarioVerdict.Update(ScenarioChecks);
         }
     }
 
@@ -216,27 +224,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
         StatusLine = "正在检测，请稍候…";
         var sw = Stopwatch.StartNew();
 
-        foreach (var c in EmSignChecks.Concat(HospitalChecks))
+        foreach (var c in EmSignChecks.Concat(ScenarioChecks))
         {
             c.Status = CheckStatus.NotRun;
             c.Detail = "";
             c.Evidence = "";
         }
         EmSignVerdict.Update(EmSignChecks);
-        HospitalVerdict.Update(HospitalChecks);
+        ScenarioVerdict.Update(ScenarioChecks);
 
         var progress = new Progress<CheckResult>(_ =>
         {
             EmSignVerdict.Update(EmSignChecks);
-            HospitalVerdict.Update(HospitalChecks);
+            ScenarioVerdict.Update(ScenarioChecks);
         });
 
         await Task.WhenAll(
             EmSignChecker.RunAllAsync(EmSignChecks, progress),
-            HospitalChecker.RunAllAsync(HospitalChecks, progress));
+            EndpointChecker.RunAllAsync(ScenarioChecks, progress));
 
         EmSignVerdict.Update(EmSignChecks);
-        HospitalVerdict.Update(HospitalChecks);
+        ScenarioVerdict.Update(ScenarioChecks);
         sw.Stop();
         StatusLine = $"检测完成，用时 {sw.Elapsed.TotalSeconds:F1} 秒 · {DateTime.Now:HH:mm:ss}";
         IsRunning = false;
