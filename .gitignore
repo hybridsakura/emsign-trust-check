@@ -1,3 +1,10 @@
 # offline build artifacts (large binaries, rebuild with scripts/build-offline-bundle.sh)
 dist/
 *.tar.gz
+*.zip
+
+# .NET build output
+windows/**/bin/
+windows/**/obj/
+windows/TrustGuard/publish/
+*.exe

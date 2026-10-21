@@ -10,8 +10,18 @@ The compromised intermediates were blocked by Firefox/Chrome (Oct 17), Apple (Oc
 
 ## What's inside
 
+Two front ends share one purpose:
+
+- **Web (Linux / Docker)** — a static page served by nginx; opens in any intranet browser.
+- **Windows portable app (`TrustGuard.exe`)** — a self-contained WPF GUI (no installer, no .NET runtime needed) for hospital endpoints, with green/red status lights and two tabs: emSign certificate checks and hospital-scenario risks.
+
+![emSign tab](docs/screenshot-emsign.png)
+![Hospital scenarios tab](docs/screenshot-hospital.png)
+
 | Path | Description |
 |---|---|
+| `windows/` | C# WPF source for `TrustGuard.exe` (see [Windows portable app](#windows-portable-app-trustguardexe)) |
+| `scripts/` | Linux checker, air-gapped installer and offline bundle builder |
 | `public/index.html` | English live-check page — probes 12 test hosts signed by the compromised intermediates. **Connected = still trusted = at risk.** |
 | `public/zh.html` | 中文版检测页面（内容相同） |
 | `public/downloads/Check-EmSignTrust.ps1` | Offline Windows checker: Disallowed CTL fingerprint comparison + browser inventory + optional live TLS probes. Works on machines with no Internet at all. |
@@ -55,6 +65,7 @@ This produces:
 |---|---|
 | `dist/emsign-trust-check-1.0.0-docker-amd64.tar.gz` | `docker load` on offline hosts — the entire image, no registry pull |
 | `dist/emsign-trust-check-1.0.0-static.tar.gz` | plain web root + scripts for hosts **without** Docker |
+| `dist/emsign-trust-check-1.0.0-windows-x64.zip` | portable `TrustGuard.exe` + offline scripts for Windows endpoints |
 | `dist/SHA256SUMS` | integrity check before rollout |
 
 On the offline host (copy `dist/` via USB or an internal share):
@@ -77,6 +88,39 @@ docker run --rm --network none emsign-trust-check:1.0.0 sh -c 'wget -qO- http://
 ```
 
 > Note: the *live check page* still probes the public test domains, so it is inconclusive on isolated hosts — that is expected. Use the offline scripts there; the page itself loads and works fine without Internet.
+
+## Windows portable app (`TrustGuard.exe`)
+
+A single self-contained executable for Windows 10 (1607+) / Windows 11 x64 — no installer, no .NET runtime, no admin rights required to start. Built with C# + WPF (chosen over a web wrapper because hospital endpoints are often air-gapped and may lack WebView2; .NET 8 self-contained removes every runtime dependency).
+
+**Tab 1 — emSign certificate trust**
+Disallowed CTL fingerprint match (16 certificates) · local CA/ROOT store scan · browser inventory · live TLS probes against the 12 test hosts.
+
+**Tab 2 — hospital business scenarios**
+Pick the machine profile (intranet PC / Internet-facing PC / USB-only air-gapped PC / BYOD laptop on the hospital network); the verdict counts only the checks relevant to it. 16 checks cover: OS support status (LTSC-aware), patch staleness, AV/signature health, firewall profiles, RDP exposure, SMBv1 + signing, Print Spooler/Point-and-Print, account policy, local shares, USB/autoplay, legacy TLS/WDigest/NTLM, remote-control software, BitLocker, domain/MDM enrollment, update source, Internet reachability. Every row carries a severity chip, a plain-language business impact and a remediation step.
+
+**Status lights**: green = pass, red = fail, amber = needs attention, grey = informational. An empty Disallowed CTL counts as informational when the live probes already prove the chains are blocked (CA-side CRL), instead of raising a false alarm.
+
+**Elevation**: when started without admin rights the header shows *以管理员身份重启*; clicking it relaunches the same exe via UAC and closes the current instance. Elevation unlocks account policy, BitLocker and full patch-inventory checks.
+
+**Reports & automation**:
+
+```powershell
+TrustGuard.exe                                                            # GUI
+TrustGuard.exe --tab2                                                     # open on the hospital tab
+TrustGuard.exe --selftest --out C:\temp\report.json                       # headless, exit 1 if anything failed
+```
+
+GUI export writes a self-contained HTML report to the Desktop — the intended way to hand results to hospital IT/security.
+
+Build (build machine only needs the .NET 8 SDK):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\build-win.ps1 -Version 1.0.0
+# -> dist\emsign-trust-check-1.0.0-windows-x64.zip (~60 MB)
+```
+
+The exe is unsigned, so SmartScreen may warn on first launch ("More info → Run anyway"); sign it with your hospital's code-signing certificate for fleet rollout.
 
 ## Offline checking (Windows, no Internet)
 
