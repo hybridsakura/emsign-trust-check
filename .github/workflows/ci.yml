@@ -39,9 +39,16 @@ jobs:
         shell: pwsh
         run: |
           $exe = Get-ChildItem dist/TrustGuard-0.0.0-ci-win-x64/TrustGuard.exe
-          & $exe.FullName --selftest --out "$env:RUNNER_TEMP/report.json"
-          if (-not (Test-Path "$env:RUNNER_TEMP/report.json")) { throw "self-test produced no report" }
-          Get-Content "$env:RUNNER_TEMP/report.json" -TotalCount 5
+          $report = Join-Path $env:RUNNER_TEMP "report.json"
+          # GUI-subsystem exes are not waited on by PowerShell, so use Start-Process -Wait.
+          $proc = Start-Process -FilePath $exe.FullName `
+            -ArgumentList @('--selftest','--out',$report) -Wait -PassThru
+          # Exit code 1 means "checks ran and found issues" — expected on a runner.
+          if ($proc.ExitCode -notin @(0,1)) { throw "self-test failed with exit code $($proc.ExitCode)" }
+          if (-not (Test-Path $report)) { throw "self-test produced no report" }
+          $json = Get-Content $report -Raw | ConvertFrom-Json
+          "emSign checks: $($json.emSign.Count), scenario checks: $($json.scenarios.Count)"
+          if ($json.emSign.Count -ne 4 -or $json.scenarios.Count -ne 16) { throw "unexpected check count" }
 
       - uses: actions/upload-artifact@v4
         with:

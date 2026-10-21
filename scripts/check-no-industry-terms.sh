@@ -13,6 +13,7 @@ cd "$(dirname "$0")/.."
 hits="$(git grep -nEI "$PATTERN" -- . \
   ':!*.png' ':!*.jpg' ':!*.jpeg' ':!*.ico' \
   ':!dist' ':!*.zip' ':!*.tar.gz' \
+  ':!scripts/check-no-industry-terms.sh' \
   ':!windows/TrustGuard/Branding/InternalBranding.local.cs' || true)"
 
 if [ -n "$hits" ]; then
