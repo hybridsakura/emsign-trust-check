@@ -135,6 +135,8 @@ powershell -ExecutionPolicy Bypass -File windows\build-win.ps1 -Version 1.0.0
 # -> dist\emsign-trust-check-1.0.0-windows-x64.zip (~60 MB)
 ```
 
+Each package contains `VERSION.txt` with the build version, timestamp and check count, so an old extracted folder can never be mistaken for a fresh build.
+
 The exe is unsigned, so SmartScreen may warn on first launch ("More info → Run anyway"); sign it with your organisation's code-signing certificate for fleet rollout.
 
 ### Build variants

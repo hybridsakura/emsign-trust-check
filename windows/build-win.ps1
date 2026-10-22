@@ -35,7 +35,7 @@ if ($Variant -eq "Internal") {
 Write-Host "==> publishing $Variant build (self-contained single file)"
 & $Dotnet publish (Join-Path $proj "TrustGuard.csproj") -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
-    -p:Variant=$Variant -o $publishDir --nologo -v q
+    -p:Variant=$Variant -p:Version=$Version -o $publishDir --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
 Write-Host "==> staging distribution folder"
@@ -50,6 +50,13 @@ Copy-Item (Join-Path $root "..\public\downloads\block-emsign-certs.ps1") (Join-P
 Copy-Item (Join-Path $root "..\public\downloads\fingerprints.json") (Join-Path $stage "scripts")
 Copy-Item (Join-Path $root "..\public\downloads\impacted-intermediates.json") (Join-Path $stage "scripts")
 Copy-Item (Join-Path $root "README-Windows.txt") $stage
+
+# Stamp the build so a stale folder can never be mistaken for a new build.
+@(
+    "TrustGuard $Version ($Variant)"
+    "built: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    "scenario checks: 2 (official patch level, firewall)"
+) | Set-Content -Path (Join-Path $stage "VERSION.txt") -Encoding UTF8
 
 Write-Host "==> zipping"
 $zip = Join-Path $dist "emsign-trust-check-$Version-windows-x64$suffix.zip"
