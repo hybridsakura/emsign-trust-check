@@ -112,11 +112,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\block-emsign-certs.ps1 -Remov
 ```
 
 **Tab 2 — endpoint scenarios**
-Pick the machine profile (intranet PC / Internet-facing PC / USB-only air-gapped PC / BYOD laptop); the verdict counts only the checks relevant to it. 16 checks cover: OS support status (LTSC-aware), patch staleness, AV/signature health, firewall profiles, RDP exposure, SMBv1 + signing, Print Spooler/Point-and-Print, account policy, local shares, USB/autoplay, legacy TLS/WDigest/NTLM, remote-control software, BitLocker, domain/MDM enrollment, update source, Internet reachability. Every row carries a severity chip, a plain-language business impact and a remediation step.
+Two checks only, deliberately: **official security patch level** (OS support status, LTSC-aware, plus the install date of the most recent update) and **firewall state** (domain / private / public profiles). Every row carries a severity chip, an action chip (`待解决` / `无需操作`), a plain-language business impact and a remediation step. The machine-profile selector still tailors the guidance text shown above the list.
 
 **Status lights**: green = pass, red = fail, amber = needs attention, grey = informational. An empty Disallowed CTL counts as informational when the live probes already prove the chains are blocked (CA-side CRL), instead of raising a false alarm.
 
-**Elevation**: when started without admin rights the header shows *以管理员身份重启*; clicking it relaunches the same exe via UAC and closes the current instance. Elevation unlocks account policy, BitLocker and full patch-inventory checks.
+**Elevation**: when started without admin rights the header shows *以管理员身份重启*; clicking it relaunches the same exe via UAC and closes the current instance. Elevation lets the firewall check read all profiles and gives the patch inventory full access.
 
 **Reports & automation**:
 

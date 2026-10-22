@@ -48,7 +48,7 @@ jobs:
           if (-not (Test-Path $report)) { throw "self-test produced no report" }
           $json = Get-Content $report -Raw | ConvertFrom-Json
           "emSign checks: $($json.emSign.Count), scenario checks: $($json.scenarios.Count)"
-          if ($json.emSign.Count -ne 4 -or $json.scenarios.Count -ne 16) { throw "unexpected check count" }
+          if ($json.emSign.Count -ne 4 -or $json.scenarios.Count -ne 2) { throw "unexpected check count" }
 
       - uses: actions/upload-artifact@v4
         with:

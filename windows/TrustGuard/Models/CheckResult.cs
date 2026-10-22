@@ -55,6 +55,10 @@ public sealed class CheckResult : INotifyPropertyChanged
             OnPropertyChanged(nameof(StatusGlyph));
             OnPropertyChanged(nameof(IsProblem));
             OnPropertyChanged(nameof(IsFail));
+            OnPropertyChanged(nameof(ActionText));
+            OnPropertyChanged(nameof(ActionBrush));
+            OnPropertyChanged(nameof(ActionBackground));
+            OnPropertyChanged(nameof(ActionBorder));
         }
     }
 
@@ -88,6 +92,41 @@ public sealed class CheckResult : INotifyPropertyChanged
         CheckStatus.Info => "i",
         CheckStatus.Running => "…",
         _ => "·"
+    };
+
+    /// <summary>Action label shown right after the severity chip.</summary>
+    public string ActionText => Status switch
+    {
+        CheckStatus.Pass => "无需操作",
+        CheckStatus.Fail => "待解决",
+        CheckStatus.Warn => "待解决",
+        CheckStatus.Info => "无需操作",
+        _ => ""
+    };
+
+    public Brush ActionBrush => Status switch
+    {
+        CheckStatus.Pass => Frozen("#15803D"),
+        CheckStatus.Fail => Frozen("#B42318"),
+        CheckStatus.Warn => Frozen("#B54708"),
+        CheckStatus.Info => Frozen("#475569"),
+        _ => Frozen("#475569")
+    };
+
+    public Brush ActionBackground => Status switch
+    {
+        CheckStatus.Pass => Frozen("#ECFDF3"),
+        CheckStatus.Fail => Frozen("#FEF3F2"),
+        CheckStatus.Warn => Frozen("#FFFAEB"),
+        _ => Frozen("#F8FAFC")
+    };
+
+    public Brush ActionBorder => Status switch
+    {
+        CheckStatus.Pass => Frozen("#BBF7D0"),
+        CheckStatus.Fail => Frozen("#FECDCA"),
+        CheckStatus.Warn => Frozen("#FEDF89"),
+        _ => Frozen("#E2E8F0")
     };
 
     public string StatusText => Status switch

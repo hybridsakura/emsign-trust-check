@@ -46,6 +46,12 @@
                                     <TextBlock Text="{Binding SeverityText}" Foreground="{Binding SeverityBrush}"
                                                FontSize="10.5" FontWeight="Bold"/>
                                 </Border>
+                                <Border Background="{Binding ActionBackground}" BorderBrush="{Binding ActionBorder}"
+                                        BorderThickness="1" CornerRadius="6" Padding="7,1.5" Margin="6,0,0,0" VerticalAlignment="Center"
+                                        Visibility="{Binding ActionText, Converter={StaticResource EmptyToCollapsed}}">
+                                    <TextBlock Text="{Binding ActionText}" Foreground="{Binding ActionBrush}"
+                                               FontSize="10.5" FontWeight="Bold"/>
+                                </Border>
                                 <Border Background="#F1F5F9" CornerRadius="6" Padding="7,1.5" Margin="6,0,0,0" VerticalAlignment="Center"
                                         Visibility="{Binding RelevanceText, Converter={StaticResource EmptyToCollapsed}}">
                                     <TextBlock Text="{Binding RelevanceText}" Foreground="#64748B" FontSize="10.5"/>

@@ -64,6 +64,12 @@ pre{background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:8px 10
         return path;
     }
 
+    /// <summary>WPF brushes render as #AARRGGBB, which CSS does not understand — emit #RRGGBB.</summary>
+    private static string Hex(System.Windows.Media.Brush brush)
+        => brush is System.Windows.Media.SolidColorBrush s
+            ? $"#{s.Color.R:X2}{s.Color.G:X2}{s.Color.B:X2}"
+            : "#E2E8F0";
+
     private static void AppendSection(StringBuilder sb, string title, IEnumerable<CheckResult> checks)
     {
         sb.Append($"<h2>{HttpUtility.HtmlEncode(title)}</h2>");
@@ -86,7 +92,10 @@ pre{background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:8px 10
             sb.Append("<div class=\"card\"><div class=\"row\">");
             sb.Append($"<div class=\"dot {cls}\"></div><div>");
             sb.Append($"<div class=\"title\">{HttpUtility.HtmlEncode(c.Title)}" +
-                      $"<span class=\"chip\" style=\"background:{c.SeverityBackground};color:{c.SeverityBrush}\">{c.SeverityText}</span></div>");
+                      $"<span class=\"chip\" style=\"background:{Hex(c.SeverityBackground)};color:{Hex(c.SeverityBrush)}\">{c.SeverityText}</span>");
+            if (!string.IsNullOrEmpty(c.ActionText))
+                sb.Append($"<span class=\"chip\" style=\"background:{Hex(c.ActionBackground)};color:{Hex(c.ActionBrush)};border:1px solid {Hex(c.ActionBorder)}\">{c.ActionText}</span>");
+            sb.Append("</div>");
             sb.Append($"<div class=\"detail\">{HttpUtility.HtmlEncode(c.Detail)}</div>");
             sb.Append($"<div class=\"label\">可能影响</div><div class=\"text\">{HttpUtility.HtmlEncode(c.Impact)}</div>");
             sb.Append($"<div class=\"label\">处置建议</div><div class=\"text\">{HttpUtility.HtmlEncode(c.Fix)}</div>");
