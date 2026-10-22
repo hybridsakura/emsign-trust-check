@@ -66,6 +66,7 @@
     <p style="margin:0">Firefox / Chrome 已于 <strong>10 月 17 日</strong>、Apple 平台于 <strong>10 月 19 日</strong>、Microsoft 平台于 <strong>10 月 20 日</strong>起封锁这些证书。<strong>长期不联网的内网电脑很可能尚未收到封锁列表，需要逐台检测。</strong></p>
   </div>
 
+  <!-- internet-only -->
   <div class="card" id="check-card">
     <h2>在线行为检测 <span class="tag">需要能访问外网测试域名</span></h2>
     <p style="margin-top:0">本页会向 12 个由被攻陷中间 CA 签发的测试站点发起 HTTPS 连接。若连接<strong>成功</strong>，说明当前浏览器仍信任该证书链，<strong>存在风险</strong>；若连接被证书验证拦截，则浏览器已受保护。</p>
@@ -78,6 +79,7 @@
     <div id="summary" class="banner"></div>
     <p style="margin:16px 0 0"><button id="rerun">开始检测</button></p>
   </div>
+  <!-- /internet-only -->
 
   <div class="card">
     <details>
@@ -92,10 +94,10 @@
         <p style="margin:0 0 4px">② <strong>浏览器内置黑名单</strong>（Chrome/Edge 的 CRLSets、Firefox 的 CRLite）：随浏览器更新下发，浏览器不更新就不会有。</p>
         <p style="margin:0 0 10px">③ <strong>系统黑名单</strong>（Windows 的“不信任证书列表”，专业名 Disallowed CTL）：由微软通过 Windows 更新下发，本机缓存后对所有走系统信任库的程序生效，<strong>断网也有效</strong>——这是桌面程序第一项检查的内容。</p>
 
-        <p style="margin:0 0 10px"><strong style="color:#0f172a">所以“吊销列表为空”到底意味着什么？</strong>只说明本机没有缓存微软的黑名单，不代表已经被攻破，也不代表已经处理完：如果在线探测 12 个站点全被拦截，说明至少第 ① 或 ② 道网在起作用；但断网后第 ① 道失效，只剩浏览器黑名单兜底。这一项看的是“离线防线有没有到位”，在线探测回答的是“此刻能不能被冒充”，两者要合起来读。</p>
+        <p style="margin:0 0 10px"><strong style="color:#0f172a">所以“吊销列表为空”到底意味着什么？</strong>只说明本机没有缓存微软的黑名单，不代表已经被攻破，也不代表已经处理完：第 ① 道网需要实时查询 CA 名单，机器不更新或无法查询时它就不起作用，只剩浏览器黑名单兜底。这一项看的是“本机的离线防线有没有到位”。</p>
 
         <p style="margin:0 0 6px"><strong style="color:#0f172a">如果内网没有统一推送、只能靠人工维护：</strong></p>
-        <p style="margin:0 0 4px">· 优先排查能上外网和收发邮件的电脑，再排查断网专用机（U 盘摆渡风险最高）。</p>
+        <p style="margin:0 0 4px">· 优先排查经常对外收发文件、插过外来 U 盘的电脑，再排查断网专用机（摆渡风险最高）。</p>
         <p style="margin:0 0 4px">· 能打补丁的，装 2026-10-20 之后的 Windows 累积更新（可用离线 .msu）；暂时不能打的，用 <code>block-emsign-certs.ps1</code> 离线把 16 张问题证书写进系统“不信任名单”，支持 <code>-Status</code> 查看、<code>-Remove</code> 撤销。</p>
         <p style="margin:0 0 4px">· 更新浏览器离线包，把第 ② 道网也补上。</p>
         <p style="margin:0 0 10px">· 指定一台能上网的“更新站”，每季度做一次人工补丁日并留台账；断网机用专用 U 盘、插入前先扫描。</p>
@@ -105,7 +107,9 @@
     </details>
   </div>
 
+  <!-- internet-only -->
   <div id="offline-banner" class="banner warn" style="display:none;margin:0 0 18px"></div>
+  <!-- /internet-only -->
 
   <div class="card">
     <h2>当前浏览器信息</h2>
@@ -114,18 +118,25 @@
   </div>
 
   <div class="card" id="offline">
-    <h2>纯内网（无外网）机器怎么测？ <span class="tag">拔掉网线也能用</span></h2>
+    <h2>完全离线的机器怎么测？ <span class="tag">拔掉网线也能用</span></h2>
+    <!-- internet-only -->
     <p style="margin:0">如果上面所有项目都显示"超时/无法连接"，说明本机无法访问外网测试域名，在线检测不可用。请使用配套的 PowerShell 离线检测脚本 <code>Check-EmSignTrust.ps1</code>，它通过以下方式判断：</p>
+    <!-- /internet-only -->
+    <!-- lan-only -->
+    <p style="margin:0">本版本为<strong>内网版</strong>：页面不会发起任何外部网络请求。请把附带的脚本拷到需要检测的机器上运行——它们只读取本机信任库与已安装浏览器版本。</p>
+    <!-- /lan-only -->
     <ul class="tight">
       <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a>（Windows）/ <a href="downloads/check-emsign-linux.sh"><code>check-emsign-linux.sh</code></a>（Linux）可完全离线运行；</li>
       <li>检查 Windows「不允许的证书」吊销列表（Disallowed CTL）中是否已包含 16 张问题证书的指纹；</li>
       <li>枚举本机安装的浏览器及版本，对照各厂商封锁时间给出风险提示；</li>
+      <!-- internet-only -->
       <li>（可选）在有外网时直接对 12 个测试域名做 TLS 握手探测。</li>
+      <!-- /internet-only -->
     </ul>
     <p style="margin:12px 0 4px"><strong>Linux 完全离线执行：</strong></p>
-    <p style="margin:0"><code>bash check-emsign-linux.sh --skip-online</code> —— 只读取本机信任库与 ca-certificates 版本，全程不发起任何网络请求。不加 <code>--skip-online</code> 时脚本会先做 2 秒连通性预检，检测到无外网会自动跳过在线探测。</p>
+    <p style="margin:0"><code>bash check-emsign-linux.sh --skip-online</code> —— 只读取本机信任库与 ca-certificates 版本，全程不发起任何网络请求；在无出网环境也会自动跳过可选探测。</p>
     <p style="margin:8px 0 0"><strong>Windows 完全离线执行：</strong></p>
-    <p style="margin:0"><code>powershell -ExecutionPolicy Bypass -File .\Check-EmSignTrust.ps1</code> —— 只比对本机「不允许的证书」列表与已安装浏览器，不访问外网。</p>
+    <p style="margin:0"><code>powershell -ExecutionPolicy Bypass -File .\Check-EmSignTrust.ps1</code> —— 只比对本机「不允许的证书」列表与已安装浏览器，不发起任何网络请求。</p>
   </div>
 
   <div class="card">
@@ -140,6 +151,7 @@
   </div>
 </div>
 
+<!-- internet-only -->
 <script>
 // 12 个测试主机：6 个 TLS 中间 CA × 2 条链（emSign 根 / AAA Certificate Services 交叉签名）
 const HOSTS = [
@@ -283,6 +295,10 @@ applyNetworkState();
 // 打开页面即探测一次：断网环境直接给出离线提示，不必等用户点击。
 (async () => { if (!(await hasInternet())) showOffline(); })();
 
+</script>
+<!-- /internet-only -->
+
+<script>
 // 浏览器信息
 document.getElementById('ua').textContent = 'User-Agent: ' + navigator.userAgent;
 (function () {
@@ -293,7 +309,7 @@ document.getElementById('ua').textContent = 'User-Agent: ' + navigator.userAgent
   if (f) hint = `检测到 Firefox ${f[1]}。封锁于 2026-10-17 起通过 CRLite/OneCRL 推送，长期离线的旧版本可能未收到。`;
   else if (/Edg\//.test(ua)) hint = `检测到 Edge ${m[1]}。依赖 Windows 吊销列表（10-20 起推送）与 CRLSets，长期离线的系统可能未收到。`;
   else if (m) hint = `检测到 Chrome/Chromium 内核 ${m[1]}。封锁于 2026-10-17 起通过 CRLSets 推送，长期离线的旧版本可能未收到。`;
-  else hint = '未能识别的浏览器，请以在线检测结果为准。';
+  else hint = '未能识别的浏览器，请以下方离线脚本结果为准。';
   document.getElementById('browser-hint').textContent = hint;
 })();
 </script>

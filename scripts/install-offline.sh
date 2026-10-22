@@ -57,9 +57,12 @@ if [ "$MODE" = docker ]; then
   fi
   [ -n "$IMAGE" ] && [ -f "$IMAGE" ] || { echo "image tarball not found; pass --image <path>" >&2; exit 1; }
 
-  IMAGE_TAG="emsign-trust-check:latest"
   echo "==> loading image from $IMAGE (no registry access needed)"
-  gunzip -c "$IMAGE" | docker load
+  LOAD_OUT="$(gunzip -c "$IMAGE" | docker load)"
+  echo "$LOAD_OUT"
+  # Use whatever tag the tarball actually carries (internet or LAN edition).
+  IMAGE_TAG="$(printf '%s\n' "$LOAD_OUT" | sed -n 's/^Loaded image: //p' | tail -1)"
+  [ -n "$IMAGE_TAG" ] || IMAGE_TAG="emsign-trust-check:latest"
   docker rm -f "$SERVICE" >/dev/null 2>&1 || true
   docker run -d --name "$SERVICE" -p "${PORT}:80" --restart unless-stopped "$IMAGE_TAG" >/dev/null
   echo "==> container started"

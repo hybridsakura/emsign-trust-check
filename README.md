@@ -31,11 +31,37 @@ Two front ends share one purpose:
 | `public/downloads/fingerprints.json` | SHA-1/SHA-256 fingerprints of all 16 compromised certs (computed from PEM, SHA-256 verified against the official list). |
 | `public/downloads/impacted-intermediates.json` | Official certificate data (with PEM) for offline chain verification with OpenSSL. |
 
+## Two editions
+
+The web UI ships as **two separate builds**, selected at build time — there is no runtime switch:
+
+| Edition | Contains | Use it when |
+|---|---|---|
+| **internet** | background, live TLS probes against the 12 test hosts, remediation, offline scripts | the checking machines can reach the public test domains |
+| **lan** | background, offline scripts, remediation — **no probe UI, no external request, no Internet-related prompt** | the network is fully isolated (business intranet) |
+
+Materialise either edition locally:
+
+```bash
+python3 scripts/build-edition.py --edition internet --out build/internet/public
+python3 scripts/build-edition.py --edition lan      --out build/lan/public
+```
+
+`scripts/check-no-industry-terms.sh` and `build-edition.py` both run in CI; the LAN build fails if it still contains `fetch(`, `https://`, `外网`, `在线检测`, `live check` or `Internet`.
+
 ## Run with Docker
 
 ```bash
-docker build -t emsign-trust-check .
+docker build -t emsign-trust-check .          # internet edition
 docker run -d --name emsign-trust-check -p 8080:80 --restart unless-stopped emsign-trust-check
+```
+
+For the LAN edition, build the image from a materialised LAN tree:
+
+```bash
+./scripts/build-offline-bundle.sh 1.0.4 --edition lan
+docker load -i dist/emsign-trust-check-1.0.4-lan-docker-amd64.tar.gz
+docker run -d --name emsign-trust-check-lan -p 8080:80 emsign-trust-check:1.0.4-lan
 ```
 
 or with Compose:
@@ -59,16 +85,19 @@ The container is 100% static: it needs no registry, no CDN, no external asset at
 On a machine **with** Docker and Internet (the build host):
 
 ```bash
-./scripts/build-offline-bundle.sh 1.0.0
+./scripts/build-offline-bundle.sh 1.0.4 --edition lan        # for the isolated network
+./scripts/build-offline-bundle.sh 1.0.4 --edition internet   # for connected machines
 ```
 
 This produces:
 
 | Artifact | Use |
 |---|---|
-| `dist/emsign-trust-check-1.0.0-docker-amd64.tar.gz` | `docker load` on offline hosts — the entire image, no registry pull |
-| `dist/emsign-trust-check-1.0.0-static.tar.gz` | plain web root + scripts for hosts **without** Docker |
-| `dist/emsign-trust-check-1.0.0-windows-x64.zip` | portable `TrustGuard.exe` + offline scripts for Windows endpoints |
+| `dist/emsign-trust-check-1.0.4-lan-docker-amd64.tar.gz` | `docker load` — LAN edition image, no registry pull |
+| `dist/emsign-trust-check-1.0.4-lan-static.tar.gz` | LAN edition web root + scripts for hosts **without** Docker |
+| `dist/emsign-trust-check-1.0.4-docker-amd64.tar.gz` | internet edition image |
+| `dist/emsign-trust-check-1.0.4-static.tar.gz` | internet edition static bundle |
+| `dist/emsign-trust-check-1.0.4-windows-x64.zip` | portable `TrustGuard.exe` + offline scripts for Windows endpoints |
 | `dist/SHA256SUMS` | integrity check before rollout |
 
 On the offline host (copy `dist/` via USB or an internal share):
@@ -76,9 +105,9 @@ On the offline host (copy `dist/` via USB or an internal share):
 ```bash
 sha256sum -c SHA256SUMS
 
-# Docker present:
-tar xzf emsign-trust-check-1.0.0-static.tar.gz && cd emsign-trust-check-1.0.0
-sudo ./scripts/install-offline.sh --docker --image ../dist/emsign-trust-check-1.0.0-docker-amd64.tar.gz
+# Docker present (LAN edition):
+tar xzf emsign-trust-check-1.0.4-lan-static.tar.gz && cd emsign-trust-check-1.0.4-lan
+sudo ./scripts/install-offline.sh --docker --image ../dist/emsign-trust-check-1.0.4-lan-docker-amd64.tar.gz
 
 # No Docker (needs only python3, served via systemd):
 sudo ./scripts/install-offline.sh --port 8080

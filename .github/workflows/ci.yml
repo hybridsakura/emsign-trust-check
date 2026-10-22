@@ -26,6 +26,13 @@ jobs:
           chmod +x scripts/check-offline-assets.sh
           ./scripts/check-offline-assets.sh
 
+      - name: Materialise both editions
+        run: |
+          python3 scripts/build-edition.py --edition internet --out /tmp/tg-internet
+          python3 scripts/build-edition.py --edition lan --out /tmp/tg-lan
+          ! grep -qE "fetch\(|外网|Internet|在线检测|live check" /tmp/tg-lan/index.html
+          ! grep -qE "fetch\(|外网|Internet|在线检测|live check" /tmp/tg-lan/zh.html
+
   windows:
     name: Windows portable exe
     runs-on: windows-latest
@@ -67,21 +74,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build offline bundles
+      - name: Build both editions
         run: |
           chmod +x scripts/*.sh
-          ./scripts/build-offline-bundle.sh 0.0.0-ci
+          ./scripts/build-offline-bundle.sh 0.0.0-ci --edition internet
+          ./scripts/build-offline-bundle.sh 0.0.0-ci --edition lan
 
-      - name: Prove the container works with networking disabled
+      - name: Internet edition works with networking disabled
         run: |
           docker run --rm --network none emsign-trust-check:0.0.0-ci \
-            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/ | grep -qi "<title>"'
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/ | grep -q "check-card"'
           docker run --rm --network none emsign-trust-check:0.0.0-ci \
-            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/zh.html | grep -q "offline-banner"'
-          docker run --rm --network none emsign-trust-check:0.0.0-ci \
-            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/downloads/check-emsign-linux.sh | grep -q "check-emsign-linux"'
-          docker run --rm --network none emsign-trust-check:0.0.0-ci \
-            sh -c 'ls /usr/share/nginx/html/downloads/Check-EmSignTrust.ps1'
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/downloads/Check-EmSignTrust.ps1 | head -1'
+
+      - name: LAN edition has no live-probe UI and no external reference
+        run: |
+          docker run --rm --network none emsign-trust-check:0.0.0-ci-lan \
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/zh.html | grep -q "内网版"'
+          docker run --rm --network none emsign-trust-check:0.0.0-ci-lan \
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; ! wget -qO- http://127.0.0.1/zh.html | grep -qE "在线行为检测|fetch\(|外网"'
+          docker run --rm --network none emsign-trust-check:0.0.0-ci-lan \
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/EDITION.txt | grep -qx lan'
 
       - uses: actions/upload-artifact@v4
         with:

@@ -48,10 +48,11 @@ jobs:
         run: |
           if [[ "${GITHUB_REF_NAME}" == v* ]]; then echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"; else echo "value=0.0.0-dev" >> "$GITHUB_OUTPUT"; fi
 
-      - name: Build offline bundles
+      - name: Build both editions
         run: |
           chmod +x scripts/*.sh
-          ./scripts/build-offline-bundle.sh ${{ steps.version.outputs.value }}
+          ./scripts/build-offline-bundle.sh ${{ steps.version.outputs.value }} --edition internet
+          ./scripts/build-offline-bundle.sh ${{ steps.version.outputs.value }} --edition lan
 
       - uses: actions/upload-artifact@v4
         with:
@@ -83,15 +84,20 @@ jobs:
           sha256sum ./*.tar.gz ./*.zip > SHA256SUMS
           cat SHA256SUMS
 
-      - name: Push image to GHCR
+      - name: Push both editions to GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          gunzip -c dist/*docker*.tar.gz | docker load
+          for f in dist/*docker*.tar.gz; do gunzip -c "$f" | docker load; done
           IMAGE="ghcr.io/${{ github.repository }}"
-          docker tag "emsign-trust-check:${{ steps.version.outputs.value }}" "$IMAGE:${{ steps.version.outputs.value }}"
-          docker tag "emsign-trust-check:${{ steps.version.outputs.value }}" "$IMAGE:latest"
-          docker push "$IMAGE:${{ steps.version.outputs.value }}"
+          V="${{ steps.version.outputs.value }}"
+          docker tag "emsign-trust-check:$V"     "$IMAGE:$V"
+          docker tag "emsign-trust-check:$V"     "$IMAGE:latest"
+          docker tag "emsign-trust-check:$V-lan" "$IMAGE:$V-lan"
+          docker tag "emsign-trust-check:$V-lan" "$IMAGE:lan"
+          docker push "$IMAGE:$V"
           docker push "$IMAGE:latest"
+          docker push "$IMAGE:$V-lan"
+          docker push "$IMAGE:lan"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

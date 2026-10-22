@@ -59,10 +59,12 @@
   <header>
     <span class="lang"><a href="zh.html">中文版</a></span>
     <h1>emSign Trust Check</h1>
-    <p class="sub">Does your browser still trust the compromised eMudhra intermediate CAs? &mdash; a self-hostable, intranet-friendly checker inspired by <a href="https://emudhra.we-have-a-problem.com/">emudhra.we-have-a-problem.com</a></p>
+    <p class="sub">Does your browser still trust the compromised eMudhra intermediate CAs? &mdash; a self-hostable, intranet-friendly checker inspired by <!-- internet-only --><a href="https://emudhra.we-have-a-problem.com/">emudhra.we-have-a-problem.com</a><!-- /internet-only --><!-- lan-only -->the public eMudhra disclosure<!-- /lan-only --></p>
   </header>
 
+  <!-- internet-only -->
   <div id="offline-banner" class="banner warn" style="display:none;margin:0 0 18px"></div>
+  <!-- /internet-only -->
 
   <div class="card">
     <h2>Background</h2>
@@ -70,6 +72,7 @@
     <p style="margin:0">The certificates have been blocked in Firefox and Chrome since <strong>Oct 17</strong>, on Apple platforms since <strong>Oct 19</strong>, and on Microsoft platforms since <strong>Oct 20</strong> &mdash; delivered through revocation push mechanisms (CRLite, CRLSets, Disallowed CTL). <strong>Machines that stay offline for long periods (typical intranet computers) may never have received these pushes and need to be checked individually.</strong></p>
   </div>
 
+  <!-- internet-only -->
   <div class="card" id="check-card">
     <h2>Live check <span class="tag">requires access to the external test domains</span></h2>
     <p style="margin-top:0">This page opens HTTPS connections to twelve test sites whose certificate chains are signed by the compromised intermediates. If a connection <strong>succeeds</strong>, your browser still trusts that chain and is <strong>at risk</strong>. If it is rejected by certificate validation, you are protected.</p>
@@ -82,6 +85,7 @@
     <div id="summary" class="banner"></div>
     <p style="margin:16px 0 0"><button id="rerun">Run check</button></p>
   </div>
+  <!-- /internet-only -->
 
   <div class="card">
     <h2>Your browser</h2>
@@ -90,12 +94,17 @@
   </div>
 
   <div class="card" id="offline">
-    <h2>Fully offline machines (no Internet at all) <span class="tag">works with the network cable unplugged</span></h2>
+    <h2>Fully offline machines <span class="tag">works with the network cable unplugged</span></h2>
+    <!-- internet-only -->
     <p style="margin:0">If every row above shows a timeout, this machine cannot reach the test domains and the live check is inconclusive. Use the bundled offline checker instead:</p>
+    <!-- /internet-only -->
+    <!-- lan-only -->
+    <p style="margin:0">This is the <strong>LAN edition</strong>: it makes no outbound network requests. Run the bundled checker on the machine you want to inspect — both scripts read the local trust store and installed browser versions only.</p>
+    <!-- /lan-only -->
     <ul class="tight">
-      <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a> &mdash; Windows PowerShell script that compares the 16 compromised certificates' fingerprints against the local Disallowed CTL, enumerates installed browser versions, and optionally performs live TLS probes.</li>
-      <li><a href="downloads/check-emsign-linux.sh"><code>check-emsign-linux.sh</code></a> &mdash; Linux equivalent: inspects distrust markers in the local trust store and package version without any network access, plus optional live probes.</li>
-      <li><a href="downloads/block-emsign-certs.ps1"><code>block-emsign-certs.ps1</code></a> &mdash; remediation for machines that cannot install Windows updates: imports the 16 certificates into the local <em>Disallowed</em> store offline (works with no WSUS and no Internet; <code>-Remove</code> rolls back, <code>-Status</code> reports the current state).</li>
+      <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a> &mdash; Windows PowerShell script that compares the 16 compromised certificates' fingerprints against the local Disallowed CTL, enumerates installed browser versions.</li>
+      <li><a href="downloads/check-emsign-linux.sh"><code>check-emsign-linux.sh</code></a> &mdash; Linux equivalent: inspects distrust markers in the local trust store and the ca-certificates package version.</li>
+      <li><a href="downloads/block-emsign-certs.ps1"><code>block-emsign-certs.ps1</code></a> &mdash; remediation for machines that cannot install Windows updates: imports the 16 certificates into the local <em>Disallowed</em> store offline (works without WSUS or a patch pipeline; <code>-Remove</code> rolls back, <code>-Status</code> reports the current state).</li>
       <li><a href="downloads/fingerprints.json"><code>fingerprints.json</code></a> &mdash; SHA-1/SHA-256 fingerprints of all 16 compromised certificates (computed locally from PEM, SHA-256 verified against the official list).</li>
       <li><a href="downloads/impacted-intermediates.json"><code>impacted-intermediates.json</code></a> &mdash; the official certificate data (with PEM) for offline chain verification with OpenSSL.</li>
     </ul>
@@ -113,6 +122,7 @@
   </div>
 </div>
 
+<!-- internet-only -->
 <script>
 // Twelve test hosts: 6 TLS intermediates x 2 chains (emSign root / AAA Certificate Services cross-sign)
 const HOSTS = [
@@ -258,6 +268,10 @@ applyNetworkState();
 // waiting for the user to click and watch twelve failures.
 (async () => { if (!(await hasInternet())) showOffline(); })();
 
+</script>
+<!-- /internet-only -->
+
+<script>
 // Browser info
 document.getElementById('ua').textContent = 'User-Agent: ' + navigator.userAgent;
 (function () {
@@ -268,7 +282,7 @@ document.getElementById('ua').textContent = 'User-Agent: ' + navigator.userAgent
   if (f) hint = `Detected Firefox ${f[1]}. The block ships via CRLite/OneCRL (since 2026-10-17); long-offline installs may not have received it.`;
   else if (/Edg\//.test(ua)) hint = `Detected Edge ${m[1]}. Relies on the Windows Disallowed CTL (since 10-20) and CRLSets; long-offline systems may not have received them.`;
   else if (m) hint = `Detected a Chrome/Chromium-based browser ${m[1]}. The block ships via CRLSets (since 2026-10-17); long-offline installs may not have received it.`;
-  else hint = 'Unrecognized browser — rely on the live check result above.';
+  else hint = 'Unrecognized browser — rely on the offline checker below.';
   document.getElementById('browser-hint').textContent = hint;
 })();
 </script>
