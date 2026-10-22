@@ -27,6 +27,8 @@ Two front ends share one purpose:
 | `scripts/` | Linux checker, air-gapped installer and offline bundle builder |
 | `public/index.html` | English live-check page — probes 12 test hosts signed by the compromised intermediates. **Connected = still trusted = at risk.** |
 | `public/zh.html` | 中文版检测页面（内容相同） |
+| `public/lan.html` | **LAN edition source** — decides in the browser, Chinese at `/`, no probe, no download, no click |
+| `deploy/canary.conf` | nginx TLS listener on 8443 backing the LAN page's certificate-validation self-check |
 | `public/downloads/Check-EmSignTrust.ps1` | Offline Windows checker: Disallowed CTL fingerprint comparison + browser inventory + optional live TLS probes. Works on machines with no Internet at all. |
 | `public/downloads/fingerprints.json` | SHA-1/SHA-256 fingerprints of all 16 compromised certs (computed from PEM, SHA-256 verified against the official list). |
 | `public/downloads/impacted-intermediates.json` | Official certificate data (with PEM) for offline chain verification with OpenSSL. |
@@ -48,6 +50,11 @@ no button to press, no script to download, no outbound request of any kind.
 | Browser version vs block timeline | the built-in blocklist (CRLSets / OneCRL) ships with the version, so a build released before 2026-10-17 cannot contain this block |
 | Certificate-validation self-check | the page connects to a self-signed endpoint on port 8443; a browser that *accepts* it is ignoring certificate errors, which voids every HTTPS protection |
 | Bundle integrity | SHA-256 over the 16 bundled fingerprints, computed in the page (works on plain HTTP, where `crypto.subtle` is unavailable) |
+
+| | |
+|---|---|
+| ![LAN edition, protected](docs/screenshot-lan.png) | ![LAN edition, still exposed](docs/screenshot-lan-fail.png) |
+| verdict on load, no interaction | same page when the browser is set to ignore certificate errors |
 
 Materialise either edition locally:
 
