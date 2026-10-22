@@ -90,7 +90,12 @@ Both modes verify themselves on `http://127.0.0.1:<port>/` using loopback only �
 docker run --rm --network none emsign-trust-check:1.0.0 sh -c 'wget -qO- http://127.0.0.1/ | head -3'
 ```
 
-> Note: the *live check page* still probes the public test domains, so it is inconclusive on isolated hosts — that is expected. Use the offline scripts there; the page itself loads and works fine without Internet.
+### Offline behaviour (verified, not assumed)
+
+- The web UI has **zero external assets** — no CDN, no web fonts, no analytics. `scripts/check-offline-assets.sh` fails CI if any `<script src>`, `<link href>`, `@import` or `url()` points outside the site.
+- On load, the page probes connectivity once. On an air-gapped host it immediately shows **“No Internet access detected”**, marks every row `not checked (offline)` and points to the bundled scripts. It deliberately **never reports “safe” from failed connections**, because a network failure and a rejected certificate look identical in the browser.
+- `check-emsign-linux.sh` works with `--skip-online` (no network calls at all) and otherwise auto-skips the live probes after a 2-second egress check, so an isolated host doesn’t wait through 12 timeouts.
+- CI runs the container with `--network none` and asserts that both pages and the downloads are served; `docker load` and the static `python3 -m http.server` path were also verified inside a network namespace.
 
 ## Windows portable app (`TrustGuard.exe`)
 

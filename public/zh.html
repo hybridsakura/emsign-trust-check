@@ -105,14 +105,16 @@
     </details>
   </div>
 
+  <div id="offline-banner" class="banner warn" style="display:none;margin:0 0 18px"></div>
+
   <div class="card">
     <h2>当前浏览器信息</h2>
     <p class="ua" id="ua"></p>
     <p id="browser-hint" style="margin-bottom:0"></p>
   </div>
 
-  <div class="card">
-    <h2>纯内网（无外网）机器怎么测？</h2>
+  <div class="card" id="offline">
+    <h2>纯内网（无外网）机器怎么测？ <span class="tag">拔掉网线也能用</span></h2>
     <p style="margin:0">如果上面所有项目都显示"超时/无法连接"，说明本机无法访问外网测试域名，在线检测不可用。请使用配套的 PowerShell 离线检测脚本 <code>Check-EmSignTrust.ps1</code>，它通过以下方式判断：</p>
     <ul class="tight">
       <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a>（Windows）/ <a href="downloads/check-emsign-linux.sh"><code>check-emsign-linux.sh</code></a>（Linux）可完全离线运行；</li>
@@ -120,6 +122,10 @@
       <li>枚举本机安装的浏览器及版本，对照各厂商封锁时间给出风险提示；</li>
       <li>（可选）在有外网时直接对 12 个测试域名做 TLS 握手探测。</li>
     </ul>
+    <p style="margin:12px 0 4px"><strong>Linux 完全离线执行：</strong></p>
+    <p style="margin:0"><code>bash check-emsign-linux.sh --skip-online</code> —— 只读取本机信任库与 ca-certificates 版本，全程不发起任何网络请求。不加 <code>--skip-online</code> 时脚本会先做 2 秒连通性预检，检测到无外网会自动跳过在线探测。</p>
+    <p style="margin:8px 0 0"><strong>Windows 完全离线执行：</strong></p>
+    <p style="margin:0"><code>powershell -ExecutionPolicy Bypass -File .\Check-EmSignTrust.ps1</code> —— 只比对本机「不允许的证书」列表与已安装浏览器，不访问外网。</p>
   </div>
 
   <div class="card">
@@ -150,7 +156,7 @@ const HOSTS = [
   { host: 'ev-g3b-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM EV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'AAA Certificate Services' },
   { host: 'ev-g3c-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM EV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'AAA Certificate Services' },
 ];
-const TIMEOUT_MS = 10000;
+const TIMEOUT_MS = 6000;
 
 const resultsBody = document.querySelector('#results tbody');
 const summary = document.getElementById('summary');
@@ -191,10 +197,44 @@ const cells = HOSTS.map(({ host, label, root }) => {
   return tdResult;
 });
 
+// 断网时探测失败与证书被拦截在浏览器里表现一致，必须先确认本机确实有外网，
+// 否则会把“无外网”误判成“已拦截、安全”。
+async function hasInternet() {
+  if (navigator.onLine === false) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    await fetch('https://emudhra.we-have-a-problem.com/favicon.ico', {
+      mode: 'no-cors', cache: 'no-store', signal: controller.signal
+    });
+    return true;
+  } catch (e) {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function showOffline() {
+  summary.className = 'banner warn show';
+  summary.innerHTML = '⚠️ <strong>未检测到外网连接。</strong>在线探测在断网环境中无法使用，结果也没有意义——' +
+    '连接失败与证书被拦截在浏览器里表现完全相同。请使用 <a href="#offline">纯内网（无外网）机器怎么测</a> 里的离线脚本；' +
+    '本页面与所有下载均可离线使用。';
+  for (const td of cells) { td.textContent = '未探测（离线）'; td.className = 'result pending'; }
+  offlineBanner.style.display = 'block';
+}
+
 async function run() {
   summary.className = 'banner';
   summary.textContent = '';
   for (const td of cells) { td.textContent = '检测中…'; td.className = 'result pending'; }
+
+  if (!(await hasInternet())) {
+    showOffline();
+    return;
+  }
+  offlineBanner.style.display = 'none';
+
   const results = await Promise.all(HOSTS.map(async ({ host }, i) => {
     const r = await probe(host);
     cells[i].textContent = r.text;
@@ -223,6 +263,25 @@ rerun.addEventListener('click', async () => {
   rerun.textContent = '重新检测';
   rerun.disabled = false;
 });
+
+// 离线感知：页面本身完全自托管，断网不影响打开与下载。
+const offlineBanner = document.getElementById('offline-banner');
+function applyNetworkState() {
+  const offline = navigator.onLine === false;
+  offlineBanner.style.display = offline ? 'block' : 'none';
+  if (offline) {
+    offlineBanner.innerHTML = '⚠️ <strong>当前离线。</strong>本页面由内网服务器提供，加载与下载都不需要外网。' +
+      '在线探测需要外网，断网时点击只会显示“未探测（离线）”，请直接使用下方 <a href="#offline">纯内网（无外网）机器怎么测</a> 里的离线脚本。' +
+      '页面上的全部内容与下载均可离线使用。';
+  }
+  rerun.textContent = '开始检测';
+}
+window.addEventListener('online', applyNetworkState);
+window.addEventListener('offline', applyNetworkState);
+applyNetworkState();
+
+// 打开页面即探测一次：断网环境直接给出离线提示，不必等用户点击。
+(async () => { if (!(await hasInternet())) showOffline(); })();
 
 // 浏览器信息
 document.getElementById('ua').textContent = 'User-Agent: ' + navigator.userAgent;

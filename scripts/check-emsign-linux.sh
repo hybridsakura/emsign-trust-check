@@ -132,13 +132,30 @@ esac
 # Layer 3: optional live TLS probes
 # ---------------------------------------------------------------------------
 online_result="-1"   # -1 skipped, 0 all blocked, >0 number connected
-if [ "$SKIP_ONLINE" = 0 ] && command -v curl >/dev/null 2>&1; then
+
+# Quick egress preflight: an air-gapped host should not sit through 12 x 6s timeouts.
+have_egress() {
+  timeout 2 bash -c 'exec 3<>/dev/tcp/1.1.1.1/443' >/dev/null 2>&1
+}
+
+if [ "$SKIP_ONLINE" = 0 ] && ! command -v curl >/dev/null 2>&1; then
+  echo
+  echo "curl not found — live probes skipped (offline layers above are authoritative)."
+  SKIP_ONLINE=1
+elif [ "$SKIP_ONLINE" = 0 ] && ! have_egress; then
+  echo
+  echo "No outbound Internet detected within 2s — live probes skipped automatically."
+  echo "The offline layers above are authoritative on this host. Use --skip-online to silence this check."
+  SKIP_ONLINE=1
+fi
+
+if [ "$SKIP_ONLINE" = 0 ]; then
   section "3. Live TLS probes (needs Internet)"
   connected=0; blocked=0; timeout=0
   for h in dv-g3b ov-g3b ev-g3b dv-g3c ov-g3c ev-g3c; do
     for s in "" "-aaa"; do
       host="${h}${s}-emudhra.we-have-a-problem.com"
-      if curl -s -o /dev/null --max-time 10 "https://${host}/" 2>/dev/null; then
+      if curl -s -o /dev/null --max-time 6 "https://${host}/" 2>/dev/null; then
         printf "  ${RED}❌ %s — connected (still trusted!)%s\n" "$host" "$NC"; connected=$((connected + 1))
       else
         rc=$?
@@ -178,6 +195,7 @@ elif [ "$distrust_state" = "trusted" ]; then
   printf "${RED}⚠️  LIKELY VULNERABLE (offline assessment): the affected roots are still trusted. Update ca-certificates.%s\n" "$NC"
   exit 1
 else
-  printf "${YELLOW}⚠️  INCONCLUSIVE: could not inspect the trust store. Run again without --skip-online on a host with Internet access.%s\n" "$NC"
+  printf "${YELLOW}⚠️  INCONCLUSIVE: could not inspect the trust store on this host.%s\n" "$NC"
+  printf "Inspect /etc/ssl/certs (or /etc/pki/tls/certs) manually, update ca-certificates from your offline repo, then re-run.%s\n" "$NC"
   exit 2
 fi

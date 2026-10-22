@@ -62,6 +62,8 @@
     <p class="sub">Does your browser still trust the compromised eMudhra intermediate CAs? &mdash; a self-hostable, intranet-friendly checker inspired by <a href="https://emudhra.we-have-a-problem.com/">emudhra.we-have-a-problem.com</a></p>
   </header>
 
+  <div id="offline-banner" class="banner warn" style="display:none;margin:0 0 18px"></div>
+
   <div class="card">
     <h2>Background</h2>
     <p style="margin:0 0 8px">On 17 October 2026, the private keys of eight eMudhra intermediate CA certificates were confirmed compromised (recoverable from the certificates themselves). They chain to roots trusted by the Mozilla, Microsoft, Apple and Chrome root programs. An attacker holding these keys can impersonate any website.</p>
@@ -87,8 +89,8 @@
     <p id="browser-hint" style="margin-bottom:0"></p>
   </div>
 
-  <div class="card">
-    <h2>Fully offline machines (no Internet at all)</h2>
+  <div class="card" id="offline">
+    <h2>Fully offline machines (no Internet at all) <span class="tag">works with the network cable unplugged</span></h2>
     <p style="margin:0">If every row above shows a timeout, this machine cannot reach the test domains and the live check is inconclusive. Use the bundled offline checker instead:</p>
     <ul class="tight">
       <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a> &mdash; Windows PowerShell script that compares the 16 compromised certificates' fingerprints against the local Disallowed CTL, enumerates installed browser versions, and optionally performs live TLS probes.</li>
@@ -127,7 +129,7 @@ const HOSTS = [
   { host: 'ev-g3b-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM EV TLS CA - G3B, O=eMudhra BV, C=NL', root: 'AAA Certificate Services' },
   { host: 'ev-g3c-aaa-emudhra.we-have-a-problem.com', label: 'CN=EM EV TLS CA - G3C, O=eMudhra Inc, C=US', root: 'AAA Certificate Services' },
 ];
-const TIMEOUT_MS = 10000;
+const TIMEOUT_MS = 6000;
 
 const resultsBody = document.querySelector('#results tbody');
 const summary = document.getElementById('summary');
@@ -168,10 +170,44 @@ const cells = HOSTS.map(({ host, label, root }) => {
   return tdResult;
 });
 
+// Offline machines fail TLS probes with the same error as a blocked certificate,
+// so "nothing connected" is only meaningful when we can prove the host has Internet.
+async function hasInternet() {
+  if (navigator.onLine === false) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    await fetch('https://emudhra.we-have-a-problem.com/favicon.ico', {
+      mode: 'no-cors', cache: 'no-store', signal: controller.signal
+    });
+    return true;   // any response (even opaque) means DNS + TCP + TLS worked
+  } catch (e) {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function showOffline() {
+  summary.className = 'banner warn show';
+  summary.innerHTML = '⚠️ <strong>No Internet access detected.</strong> The live check cannot run on an air-gapped network, ' +
+    'and its result would be meaningless here (a failed connection looks identical to a blocked certificate). ' +
+    'Use the offline checkers in <a href="#offline">Fully offline machines</a> — this page and every download work without Internet.';
+  for (const td of cells) { td.textContent = 'not checked (offline)'; td.className = 'result pending'; }
+  offlineBanner.style.display = 'block';
+}
+
 async function run() {
   summary.className = 'banner';
   summary.textContent = '';
   for (const td of cells) { td.textContent = 'checking…'; td.className = 'result pending'; }
+
+  if (!(await hasInternet())) {
+    showOffline();
+    return;
+  }
+  offlineBanner.style.display = 'none';
+
   const results = await Promise.all(HOSTS.map(async ({ host }, i) => {
     const r = await probe(host);
     cells[i].textContent = r.text;
@@ -200,6 +236,27 @@ rerun.addEventListener('click', async () => {
   rerun.textContent = 'Run again';
   rerun.disabled = false;
 });
+
+// Offline awareness: the page itself is fully self-hosted and needs no Internet.
+const offlineBanner = document.getElementById('offline-banner');
+function applyNetworkState() {
+  const offline = navigator.onLine === false;
+  offlineBanner.style.display = offline ? 'block' : 'none';
+  if (offline) {
+    offlineBanner.innerHTML = '⚠️ <strong>Offline mode.</strong> This page is served from your intranet and needs no Internet to load. ' +
+      'The live check requires external access, so it will report "not checked (offline)" — ' +
+      'use the offline checkers in <a href="#offline">Fully offline machines</a> for a definitive answer. ' +
+      'Nothing on this page (including the downloads) requires an Internet connection.';
+  }
+  rerun.textContent = 'Run check';
+}
+window.addEventListener('online', applyNetworkState);
+window.addEventListener('offline', applyNetworkState);
+applyNetworkState();
+
+// Probe once on load: on an air-gapped host, say so immediately instead of
+// waiting for the user to click and watch twelve failures.
+(async () => { if (!(await hasInternet())) showOffline(); })();
 
 // Browser info
 document.getElementById('ua').textContent = 'User-Agent: ' + navigator.userAgent;

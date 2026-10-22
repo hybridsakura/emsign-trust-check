@@ -21,6 +21,11 @@ jobs:
           chmod +x scripts/check-no-industry-terms.sh
           ./scripts/check-no-industry-terms.sh
 
+      - name: Reject external web assets (offline guarantee)
+        run: |
+          chmod +x scripts/check-offline-assets.sh
+          ./scripts/check-offline-assets.sh
+
   windows:
     name: Windows portable exe
     runs-on: windows-latest
@@ -71,6 +76,10 @@ jobs:
         run: |
           docker run --rm --network none emsign-trust-check:0.0.0-ci \
             sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/ | grep -qi "<title>"'
+          docker run --rm --network none emsign-trust-check:0.0.0-ci \
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/zh.html | grep -q "offline-banner"'
+          docker run --rm --network none emsign-trust-check:0.0.0-ci \
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/downloads/check-emsign-linux.sh | grep -q "check-emsign-linux"'
           docker run --rm --network none emsign-trust-check:0.0.0-ci \
             sh -c 'ls /usr/share/nginx/html/downloads/Check-EmSignTrust.ps1'
 
