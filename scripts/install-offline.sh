@@ -18,6 +18,7 @@ set -eu
 
 MODE=static
 PORT=8080
+CANARY_PORT=8443
 PREFIX=/opt/emsign-trust-check
 IMAGE=""
 SERVICE=emsign-trust-check
@@ -32,6 +33,7 @@ while [ $# -gt 0 ]; do
     --docker) MODE=docker; shift ;;
     --static) MODE=static; shift ;;
     --port) PORT="$2"; shift 2 ;;
+    --canary-port) CANARY_PORT="$2"; shift 2 ;;
     --prefix) PREFIX="$2"; shift 2 ;;
     --image) IMAGE="$2"; shift 2 ;;
     -h|--help) usage ;;
@@ -64,7 +66,9 @@ if [ "$MODE" = docker ]; then
   IMAGE_TAG="$(printf '%s\n' "$LOAD_OUT" | sed -n 's/^Loaded image: //p' | tail -1)"
   [ -n "$IMAGE_TAG" ] || IMAGE_TAG="emsign-trust-check:latest"
   docker rm -f "$SERVICE" >/dev/null 2>&1 || true
-  docker run -d --name "$SERVICE" -p "${PORT}:80" --restart unless-stopped "$IMAGE_TAG" >/dev/null
+  # 8443 only serves the TLS-enforcement self-check used by the LAN page.
+  docker run -d --name "$SERVICE" -p "${PORT}:80" -p "${CANARY_PORT}:8443" \
+    --restart unless-stopped "$IMAGE_TAG" >/dev/null
   echo "==> container started"
 else
   command -v python3 >/dev/null 2>&1 || { echo "python3 not found; install it from your offline repo, or use --docker" >&2; exit 1; }

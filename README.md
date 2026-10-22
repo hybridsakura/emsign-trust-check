@@ -35,19 +35,30 @@ Two front ends share one purpose:
 
 The web UI ships as **two separate builds**, selected at build time — there is no runtime switch:
 
-| Edition | Contains | Use it when |
+| Edition | Answers how | Use it when |
 |---|---|---|
-| **internet** | background, live TLS probes against the 12 test hosts, remediation, offline scripts | the checking machines can reach the public test domains |
-| **lan** | background, offline scripts, remediation — **no probe UI, no external request, no Internet-related prompt** | the network is fully isolated (business intranet) |
+| **internet** | sends live TLS probes to the 12 public test hosts — a successful connection means the machine still trusts the leaked intermediates | the checking machines can reach the public test domains |
+| **lan** | decides inside the browser: compares the exact browser version against the vendor block timeline, and runs a local TLS-enforcement self-check — **no probe UI, no external request, no download, no click** | the network is fully isolated (business intranet) |
+
+The LAN page is Chinese by default (`/` **is** the Chinese page) and produces its verdict on load:
+no button to press, no script to download, no outbound request of any kind.
+
+| LAN check | What it proves |
+|---|---|
+| Browser version vs block timeline | the built-in blocklist (CRLSets / OneCRL) ships with the version, so a build released before 2026-10-17 cannot contain this block |
+| Certificate-validation self-check | the page connects to a self-signed endpoint on port 8443; a browser that *accepts* it is ignoring certificate errors, which voids every HTTPS protection |
+| Bundle integrity | SHA-256 over the 16 bundled fingerprints, computed in the page (works on plain HTTP, where `crypto.subtle` is unavailable) |
 
 Materialise either edition locally:
 
 ```bash
-python3 scripts/build-edition.py --edition internet --out build/internet/public
-python3 scripts/build-edition.py --edition lan      --out build/lan/public
+python3 scripts/build-edition.py --edition internet --out build/internet
+python3 scripts/build-edition.py --edition lan      --out build/lan
 ```
 
-`scripts/check-no-industry-terms.sh` and `build-edition.py` both run in CI; the LAN build fails if it still contains `fetch(`, `https://`, `外网`, `在线检测`, `live check` or `Internet`.
+`scripts/check-no-industry-terms.sh`, `check-offline-assets.sh` and `build-edition.py` all run in CI; the
+LAN build fails if the page contains `https://`, `http://`, `外网`, `在线检测`, `Internet`, a `<button>`,
+a download link or any external sub-resource.
 
 ## Run with Docker
 
@@ -61,7 +72,8 @@ For the LAN edition, build the image from a materialised LAN tree:
 ```bash
 ./scripts/build-offline-bundle.sh 1.0.4 --edition lan
 docker load -i dist/emsign-trust-check-1.0.4-lan-docker-amd64.tar.gz
-docker run -d --name emsign-trust-check-lan -p 8080:80 emsign-trust-check:1.0.4-lan
+# 8443 serves only the TLS-enforcement self-check used by the LAN page
+docker run -d --name emsign-trust-check-lan -p 8080:80 -p 8443:8443 emsign-trust-check:1.0.4-lan
 ```
 
 or with Compose:

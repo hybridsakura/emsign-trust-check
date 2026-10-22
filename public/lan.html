@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>emSign 证书漏洞本地检测（内网版）</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#fff; --line:#e5e9f0; --line2:#eef1f6;
+    --text:#111827; --muted:#5b6472; --muted2:#8a94a6;
+    --green:#15803d; --green-bg:#ecfdf3; --green-line:#b7ebc9;
+    --red:#b91c1c; --red-bg:#fef2f2; --red-line:#f6c8c8;
+    --amber:#a16207; --amber-bg:#fffbeb; --amber-line:#f3e0a8;
+    --grey:#475569; --grey-bg:#f3f6fa; --grey-line:#dde3ec;
+    --accent:#2563eb; --accent-bg:#eff5ff; --accent-line:#cfe0ff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:0 16px 72px;background:var(--bg);color:var(--text);
+    font-family:"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px;margin:0 auto}
+  header{padding:34px 0 20px}
+  h1{font-size:25px;line-height:1.35;margin:0 0 8px;letter-spacing:-.2px}
+  .sub{color:var(--muted);font-size:13.5px;margin:0}
+  .badge-edition{
+    display:inline-flex;align-items:center;gap:6px;background:var(--accent-bg);color:var(--accent);
+    border:1px solid var(--accent-line);border-radius:999px;padding:3px 11px;font-size:12px;
+    font-weight:600;margin-bottom:12px;
+  }
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px}
+  h2{font-size:16px;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+  h2 .bar{width:3px;height:15px;border-radius:2px;background:var(--accent)}
+
+  /* 结论卡 */
+  #verdict{display:flex;gap:18px;align-items:flex-start;border-left:4px solid var(--grey-line)}
+  #verdict.pass{border-left-color:var(--green);background:linear-gradient(180deg,#f7fdf9,#fff 60%)}
+  #verdict.warn{border-left-color:var(--amber);background:linear-gradient(180deg,#fffdf5,#fff 60%)}
+  #verdict.fail{border-left-color:var(--red);background:linear-gradient(180deg,#fff8f8,#fff 60%)}
+  .vmark{
+    flex:0 0 46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:22px;font-weight:700;color:#fff;background:var(--grey);
+  }
+  #verdict.pass .vmark{background:var(--green)}
+  #verdict.warn .vmark{background:var(--amber)}
+  #verdict.fail .vmark{background:var(--red)}
+  .vtext{flex:1;min-width:0}
+  .vtitle{font-size:20px;font-weight:700;margin:0 0 6px;letter-spacing:-.2px}
+  #verdict.pass .vtitle{color:var(--green)}
+  #verdict.warn .vtitle{color:var(--amber)}
+  #verdict.fail .vtitle{color:var(--red)}
+  .vsub{margin:0;color:var(--muted);font-size:13.5px}
+  .vcount{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chip{font-size:12px;border-radius:999px;padding:3px 10px;border:1px solid var(--grey-line);background:var(--grey-bg);color:var(--grey)}
+  .chip.pass{background:var(--green-bg);border-color:var(--green-line);color:var(--green)}
+  .chip.warn{background:var(--amber-bg);border-color:var(--amber-line);color:var(--amber)}
+  .chip.fail{background:var(--red-bg);border-color:var(--red-line);color:var(--red)}
+
+  /* 检查项 */
+  .check{display:flex;gap:13px;padding:15px 0;border-top:1px solid var(--line2)}
+  .check:first-child{border-top:0;padding-top:2px}
+  .dot{
+    flex:0 0 26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;border:1.5px solid var(--grey-line);background:var(--grey-bg);color:var(--grey);
+  }
+  .dot.pass{border-color:var(--green-line);background:var(--green-bg);color:var(--green)}
+  .dot.warn{border-color:var(--amber-line);background:var(--amber-bg);color:var(--amber)}
+  .dot.fail{border-color:var(--red-line);background:var(--red-bg);color:var(--red)}
+  .body{flex:1;min-width:0}
+  .head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .name{font-size:14.5px;font-weight:650}
+  .tag{font-size:11px;border-radius:6px;padding:1px 8px;border:1px solid var(--grey-line);background:var(--grey-bg);color:var(--grey);font-weight:600}
+  .tag.pass{background:var(--green-bg);border-color:var(--green-line);color:var(--green)}
+  .tag.warn{background:var(--amber-bg);border-color:var(--amber-line);color:var(--amber)}
+  .tag.fail{background:var(--red-bg);border-color:var(--red-line);color:var(--red)}
+  .detail{margin:6px 0 0;font-size:13.5px;color:#39414f}
+  .ev{
+    margin:9px 0 0;font-family:ui-monospace,Consolas,"Courier New",monospace;font-size:11.5px;
+    color:var(--muted2);background:#fafbfd;border:1px solid var(--line2);border-radius:8px;padding:7px 10px;
+    white-space:pre-wrap;word-break:break-all;
+  }
+
+  /* 处置 */
+  .adv{list-style:none;margin:0;padding:0}
+  .adv li{position:relative;padding:11px 0 11px 26px;border-top:1px dashed var(--line2);font-size:13.5px}
+  .adv li:first-child{border-top:0;padding-top:0}
+  .adv li:before{
+    content:"";position:absolute;left:6px;top:19px;width:6px;height:6px;border-radius:50%;background:var(--accent);
+  }
+  .adv li:first-child:before{top:8px}
+  .adv b{color:var(--text)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line2);vertical-align:top}
+  th{color:var(--muted2);font-weight:600;width:132px;background:#fbfcfe}
+  tr:last-child th,tr:last-child td{border-bottom:0}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#f1f4f8;padding:1px 6px;border-radius:5px}
+
+  details{border-top:1px solid var(--line2);padding-top:12px;margin-top:12px}
+  details:first-of-type{border-top:0;padding-top:0;margin-top:0}
+  summary{cursor:pointer;font-size:14px;font-weight:650;color:var(--accent);list-style:none;display:flex;align-items:center;gap:8px}
+  summary::-webkit-details-marker{display:none}
+  summary:before{content:"›";display:inline-block;transition:transform .15s;font-size:17px;line-height:1}
+  details[open] summary:before{transform:rotate(90deg)}
+  details .inner{padding:14px 0 2px}
+  .inner p{margin:0 0 10px;font-size:13.5px;color:#39414f}
+  .inner ul{margin:0 0 10px;padding-left:20px;font-size:13.5px;color:#39414f}
+  .inner li{margin:5px 0}
+  .inner h3{font-size:13.5px;margin:16px 0 7px;color:#1f2937}
+  .note{font-size:12.5px;color:var(--muted2);margin:0}
+  .certlist{max-height:300px;overflow:auto;margin-top:10px}
+  .certlist table{font-size:12px}
+  .certlist th{width:auto;white-space:nowrap}
+  footer{text-align:center;color:var(--muted2);font-size:12px;padding:10px 0 0}
+  @media (max-width:640px){
+    h1{font-size:21px} .card{padding:17px} #verdict{flex-direction:column;gap:12px}
+    .vmark{width:40px;height:40px;flex-basis:40px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="badge-edition">内网版 · 打开即判定 · 不依赖浏览器之外的任何组件</div>
+    <h1>emSign 证书漏洞本地检测</h1>
+    <p class="sub">检查这台电脑上的浏览器，在访问 HTTPS 网站时是否仍会信任 2026 年 10 月被攻陷的 8 个 eMudhra 中间 CA。页面加载完成后自动给出结论。</p>
+  </header>
+
+  <div class="card" id="verdict">
+    <div class="vmark" id="vmark">…</div>
+    <div class="vtext">
+      <p class="vtitle" id="vtitle">正在判定…</p>
+      <p class="vsub" id="vsub">正在读取浏览器版本并核对本机证书校验状态。</p>
+      <div class="vcount" id="vcount"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="bar"></span>判定明细</h2>
+    <div id="checks"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="bar"></span>处置建议</h2>
+    <ul class="adv" id="advice"></ul>
+  </div>
+
+  <div class="card">
+    <h2><span class="bar"></span>本机信息</h2>
+    <table>
+      <tr><th>浏览器</th><td id="i-browser">—</td></tr>
+      <tr><th>版本</th><td id="i-version">—</td></tr>
+      <tr><th>内核</th><td id="i-engine">—</td></tr>
+      <tr><th>操作系统</th><td id="i-os">—</td></tr>
+      <tr><th>判定时间</th><td id="i-time">—</td></tr>
+      <tr><th>封锁基线</th><td id="i-baseline">—</td></tr>
+    </table>
+    <p class="note" style="margin-top:12px">本页读到的一切都来自浏览器自身公开的信息，不上传、不落盘、不发起任何外部请求。</p>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>为什么网页读不到系统信任库？（判定范围的说明）</summary>
+      <div class="inner">
+        <p>浏览器出于防止指纹追踪的考虑，不允许网页脚本读取系统证书存储、吊销列表，也不允许枚举已安装的根证书。这是浏览器的安全边界，任何网页都做不到——原站之所以能"实测"，是因为它的探测目标在公网上，靠发起真实 TLS 连接让浏览器自己暴露结论。</p>
+        <p>在完全隔离的环境里没有这个条件，所以本页改用两条可验证的本地证据：</p>
+        <ul>
+          <li><b>版本与封锁时间线比对</b>：浏览器内置黑名单（Chrome/Edge 的 CRLSets、Firefox 的 OneCRL/CRLite）是随浏览器版本一起下发的。版本发布日期早于封锁日期，就必然不含本次封锁。</li>
+          <li><b>证书校验强制力自检</b>：本页会尝试连接一个使用自签证书的本地端点，正常情况下浏览器必须拒绝。若被接受，说明这台机器的浏览器被配置成忽略证书错误，那么所有 HTTPS 防护都已失效，比本次漏洞更严重。</li>
+        </ul>
+        <p>这两条合起来，回答的是"这台机器的浏览器层还有没有防线"。系统层（影响 OA 客户端、.NET、Java 等不走浏览器的程序）网页无法读取，需要管理员在本机核对。</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>这个漏洞到底是怎么回事（科普）</summary>
+      <div class="inner">
+        <h3>一句话版本</h3>
+        <p>给网站"发身份证"的一家机构，有一枚印章的私钥泄露了。拿到这枚印章的人，可以给任意网站签出一张"看起来完全合法"的证书。</p>
+
+        <h3>证书是怎么建立信任的</h3>
+        <p>用户访问一个 HTTPS 网站时，网站会出示一张证书，证书上有一串数字签名。浏览器顺着这条签名链往上找，直到找到一张自己"本来就认识"的根证书为止——找到，并且中间没有任何一张被吊销，就认为这个网站是真的。</p>
+        <p>这条链通常是三层：根证书（相当于派出所）→ 中间证书（相当于警务室）→ 网站证书（相当于警务室开出的证明）。中间这一层被攻陷，等于有人拿到了一整本盖好章的空白证明。</p>
+
+        <h3>这次出了什么事</h3>
+        <p>2026 年 10 月 17 日，eMudhra 的 8 个中间 CA 私钥被确认可以从证书本身还原出来，共涉及 16 张证书，有效期一直到 2040 年。这些中间 CA 直接挂在 Mozilla、Microsoft、Apple、Chrome 都信任的根证书下面，所以只要机器还信任它们，持有私钥的人就能对任意 HTTPS 站点做中间人攻击。</p>
+        <p>各厂商的封锁时间：Firefox 与 Chrome 为 <b>10 月 17 日</b>，Apple 平台为 <b>10 月 19 日</b>，Microsoft 平台为 <b>10 月 20 日</b>。</p>
+
+        <h3>三道拦网，任何一道生效都能挡住</h3>
+        <ul>
+          <li><b>① CA 吊销名单（CRL/OCSP）</b>：由 CA 自己发布，验证时向 CA 实时查询。查询不到就不起作用。</li>
+          <li><b>② 浏览器内置黑名单</b>：Chrome/Edge 的 CRLSets、Firefox 的 OneCRL/CRLite，随浏览器版本或组件更新下发。浏览器不更新就没有。</li>
+          <li><b>③ 系统黑名单（Disallowed CTL）</b>：由微软随操作系统累积更新下发，影响所有走系统证书存储的程序。</li>
+        </ul>
+        <p>本页判定的主要是第 ② 道——这也是普通上网浏览时真正在起作用的那一道。第 ③ 道只有管理员在本机才能核对。</p>
+
+        <h3>为什么"版本旧"就等于"没防线"</h3>
+        <p>内置黑名单不是凭空长出来的，它随版本走。一个发布日期早于 10 月 17 日的浏览器，其内置黑名单里不可能包含这次封锁的 16 张证书；而 ① 需要实时查询 CA，隔离环境里通常查不到；③ 需要装系统补丁。三道全缺，就等于这台机器对持有泄露私钥的人完全不设防。</p>
+
+        <h3>被冒充时会发生什么</h3>
+        <p>攻击者可以让你在地址栏显示正确域名、锁标正常的情况下，访问到一个由他控制的服务器。账号口令、公文、业务数据在传输途中全部可见可改。这类攻击不会弹任何提示，用户无法察觉。</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>本次封锁对象清单（16 张证书指纹）</summary>
+      <div class="inner">
+        <p class="note">供管理员与本机核对结果比对使用。指纹为 SHA-256，可在证书属性中逐一核验。</p>
+        <div class="certlist">
+          <table>
+            <thead><tr><th>证书名称</th><th>签发者</th><th>SHA-256</th></tr></thead>
+            <tbody id="certbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <footer>TrustGuard · 内网版 · 判定全程在本机浏览器内完成</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 维护基线：每月随浏览器大版本更新一次 ---------- */
+  var BLOCK = { chromium: '2026-10-17', firefox: '2026-10-17', apple: '2026-10-19' };
+  var BASE = {
+    chromium: { major: 156, date: '2026-10-20', period: 28 },
+    firefox:  { major: 157, date: '2026-10-20', period: 28 },
+    safari:   { major: 26,  date: '2026-10-20', period: 365 }
+  };
+  var CERTS = [
+    { name: "EM DV TLS CA - G3B", issued_by: "emSign Root TLS CA - G3", sha256: "42C4ACCD12C4F59597925E1A08A7A90102608543809308D50EC427E118BA1493" },
+    { name: "EM DV TLS CA - G3B", issued_by: "AAA Certificate Services", sha256: "45A883F349AEDFD5F3A649B5498FFB121712BA8B448F3F2A91DBC5A766FCDDBE" },
+    { name: "EM OV TLS CA - G3B", issued_by: "emSign Root TLS CA - G3", sha256: "98B896625C0C230ADEEC3EB2CF6AAD5001ECF9156A68644E82374CE5833BC25B" },
+    { name: "EM OV TLS CA - G3B", issued_by: "AAA Certificate Services", sha256: "5F1DED4DD590AF74631290CF073B122A2AAC6A1FA479778A0BD43579BD832699" },
+    { name: "EM EV TLS CA - G3B", issued_by: "emSign Root TLS CA - G3", sha256: "E7568FE6E12331F4FD7DE61DA4C7559D0F8EB192A218D4741A3BA75184333838" },
+    { name: "EM EV TLS CA - G3B", issued_by: "AAA Certificate Services", sha256: "579480AEA166290BD3C643589E795FC0D0E54E86505D180F1DFF99EFD3199512" },
+    { name: "EM DV TLS CA - G3C", issued_by: "emSign Root TLS CA - G3", sha256: "0164D7CEAE5BB909C272AF151FF44B1177AE9B47D9424B94F1D9558C30934D19" },
+    { name: "EM DV TLS CA - G3C", issued_by: "AAA Certificate Services", sha256: "62B7F9868263F72F6911FC78CEAF72C1979158B7368BF648683BB2AA39B02E72" },
+    { name: "EM OV TLS CA - G3C", issued_by: "emSign Root TLS CA - G3", sha256: "CB6E15165AC802E9B3F993F16C25D41F4E81C21EBDE71AE1B012AC00BF9C7C3F" },
+    { name: "EM OV TLS CA - G3C", issued_by: "AAA Certificate Services", sha256: "7485B51C0ED192878FA1D2F948FB529AE1842CC5086C4B67F7BE5B2039DE9489" },
+    { name: "EM EV TLS CA - G3C", issued_by: "emSign Root TLS CA - G3", sha256: "432EC25F0D28DE9006D97BF752F17BBB2CD41F669933FCB072D9A1148D0261F3" },
+    { name: "EM EV TLS CA - G3C", issued_by: "AAA Certificate Services", sha256: "FD9D5C2DBBD4995AB69B8D50C439D9527B00529199C2FD01B2174EB58F07021F" },
+    { name: "EM OV CS CA - G3B", issued_by: "emSign Root CS CA - G3", sha256: "9E39DE2881273ACC225A149C72BA3E0F51424963669AB633EE1DC7DF5DB067B4" },
+    { name: "EM OV CS CA - G3B", issued_by: "AAA Certificate Services", sha256: "A496E23AC0CAB8155FC9B117B97EAE368EFCBB9041AEC8804D5A308D2D01C2D8" },
+    { name: "EM OV CS CA - G3C", issued_by: "emSign Root CS CA - G3", sha256: "4B2460A466F95FD40113BCDCCA2CEB29B3B093921DE45474DA7DF48874C630B1" },
+    { name: "EM OV CS CA - G3C", issued_by: "AAA Certificate Services", sha256: "84112972B8E59D14560AE7E7119654474AAD119990CF3722BFC1E3B91615E1FD" }
+  ];
+  var CERTS_SHA256 = 'CF9562FE89C743AB7B674B1F0BA2E5823A5A8A9745BB7A40B76DAE11C80E3013';
+
+  var DAY = 86400000;
+
+  function parseDate(s) {
+    var p = s.split('-');
+    return Date.UTC(+p[0], +p[1] - 1, +p[2]);
+  }
+  function fmtDate(ms) {
+    var d = new Date(ms);
+    var m = d.getUTCMonth() + 1;
+    return d.getUTCFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (d.getUTCDate() < 10 ? '0' + d.getUTCDate() : d.getUTCDate());
+  }
+  function estimateRelease(bucket, major) {
+    var b = BASE[bucket];
+    if (major >= b.major) return parseDate(b.date);
+    return parseDate(b.date) - (b.major - major) * b.period * DAY;
+  }
+
+  /* ---------- 浏览器识别 ---------- */
+  function identifyShell(ua) {
+    if (/QihooBrowser|QHBrowser|360SE|360EE/i.test(ua)) return '360 浏览器';
+    if (/QQBrowser|TencentTraveler/i.test(ua)) return 'QQ 浏览器';
+    if (/Sogou|MetaSr/i.test(ua)) return '搜狗浏览器';
+    if (/2345Explorer|2345Browser/i.test(ua)) return '2345 浏览器';
+    if (/LBBROWSER|LieBaoFast/i.test(ua)) return '猎豹浏览器';
+    if (/Maxthon/i.test(ua)) return '傲游浏览器';
+    if (/UCBrowser|UBrowser/i.test(ua)) return 'UC 浏览器';
+    return 'Chromium 内核浏览器';
+  }
+
+  function identify(ua, brands) {
+    var r = { family: 'unknown', bucket: null, major: null, name: '未能识别的浏览器', engine: '未知', shell: false };
+    var m;
+
+    if (/Trident\/|MSIE \d/.test(ua)) {
+      r.family = 'ie'; r.name = 'Internet Explorer'; r.engine = 'Trident（已停止支持）';
+      return r;
+    }
+    if ((m = ua.match(/EdgiOS\/(\d+)/)) || (m = ua.match(/FxiOS\/(\d+)/)) || (m = ua.match(/CriOS\/(\d+)/))) {
+      r.family = 'ios'; r.bucket = 'safari'; r.major = +m[1];
+      r.name = /FxiOS/.test(ua) ? 'Firefox（iOS）' : /EdgiOS/.test(ua) ? 'Edge（iOS）' : 'Chrome（iOS）';
+      r.engine = 'WebKit（受系统版本约束）';
+      return r;
+    }
+    if ((m = ua.match(/Edg\/(\d+)/))) {
+      r.family = 'edge'; r.bucket = 'chromium'; r.major = +m[1];
+      r.name = 'Microsoft Edge'; r.engine = 'Chromium';
+      return r;
+    }
+    if ((m = ua.match(/OPR\/(\d+)/))) {
+      r.family = 'opera'; r.bucket = 'chromium'; r.major = +m[1];
+      r.name = 'Opera'; r.engine = 'Chromium';
+      return r;
+    }
+    if ((m = ua.match(/Firefox\/(\d+)/))) {
+      r.family = 'firefox'; r.bucket = 'firefox'; r.major = +m[1];
+      r.name = 'Mozilla Firefox'; r.engine = 'Gecko';
+      return r;
+    }
+    if ((m = ua.match(/Version\/(\d+)[\d.]*\s+.*?Safari/))) {
+      r.family = 'safari'; r.bucket = 'safari'; r.major = +m[1];
+      r.name = 'Safari'; r.engine = 'WebKit';
+      return r;
+    }
+    if ((m = ua.match(/Chrome\/(\d+)/))) {
+      var shell = /QihooBrowser|QHBrowser|360SE|360EE|QQBrowser|Sogou|MetaSr|2345Explorer|LBBROWSER|Maxthon|UCBrowser|UBrowser/i.test(ua);
+      r.family = shell ? 'chromium-shell' : 'chrome';
+      r.bucket = 'chromium'; r.major = +m[1]; r.engine = 'Chromium';
+      r.name = shell ? identifyShell(ua) : 'Google Chrome / Chromium';
+      r.shell = shell;
+      return r;
+    }
+    if (brands && brands.length) {
+      var chromium = brands.filter(function (b) { return /Chromium/i.test(b.brand); })[0];
+      if (chromium) {
+        r.family = 'chromium-shell'; r.bucket = 'chromium'; r.major = parseInt(chromium.version, 10) || null;
+        r.name = 'Chromium 内核浏览器'; r.engine = 'Chromium';
+      }
+    }
+    return r;
+  }
+
+  /* ---------- 判定 ---------- */
+  function judgeBrowser(id) {
+    if (id.family === 'ie') {
+      return {
+        status: 'fail',
+        detail: 'Internet Explorer 没有内置黑名单，只依赖系统吊销列表，且微软已停止支持。即使装了系统补丁，用它访问 HTTPS 业务系统仍然不可接受。',
+        evidence: 'family=ie  engine=Trident'
+      };
+    }
+    if (!id.bucket || !id.major) {
+      return {
+        status: 'warn',
+        detail: '无法从浏览器自报信息中确定版本。这种情况通常出现在非常规内核或刻意伪装标识的浏览器上，无法判断它是否已收到封锁列表，建议按"未确认"处理。',
+        evidence: 'family=' + id.family + '  major=unknown'
+      };
+    }
+    var est = estimateRelease(id.bucket, id.major);
+    var blockDate = parseDate(id.bucket === 'safari' ? BLOCK.apple : BLOCK[id.bucket]);
+    var gap = Math.round((est - blockDate) / DAY);
+
+    var base = '当前版本约发布于 ' + fmtDate(est) + '，封锁日期为 ' + fmtDate(blockDate) + '。';
+    if (id.shell) {
+      base += '该浏览器为 Chromium 套壳，内核通常落后官方版本较长时间。';
+    }
+
+    if (gap >= 0) {
+      return {
+        status: 'pass',
+        detail: base + '版本发布晚于封锁日期，内置黑名单应已包含这 16 张证书，浏览器层已有防线。',
+        evidence: 'estimated=' + fmtDate(est) + '  block=' + fmtDate(blockDate) + '  gap=+' + gap + 'd'
+      };
+    }
+    if (gap > -45) {
+      return {
+        status: 'warn',
+        detail: base + '版本发布早于封锁日期不足 6 周，是否已拿到封锁取决于浏览器组件更新有没有成功执行过，需要确认一次版本是最新的。',
+        evidence: 'estimated=' + fmtDate(est) + '  block=' + fmtDate(blockDate) + '  gap=' + gap + 'd'
+      };
+    }
+    return {
+      status: 'fail',
+      detail: base + '版本发布早于封锁日期，内置黑名单里不可能包含本次封锁的证书。在未更新的情况下，这台机器的浏览器对持有泄露私钥的人不设防。',
+      evidence: 'estimated=' + fmtDate(est) + '  block=' + fmtDate(blockDate) + '  gap=' + gap + 'd'
+    };
+  }
+
+  /* ---------- 证书校验强制力自检 ---------- */
+  function withTimeout(p, ms) {
+    return new Promise(function (resolve) {
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; resolve({ state: 'skip' }); } }, ms);
+      p.then(function (v) { if (!done) { done = true; clearTimeout(t); resolve(v); } },
+             function () { if (!done) { done = true; clearTimeout(t); resolve({ state: 'skip' }); } });
+    });
+  }
+
+  function canaryProbe() {
+    var host = location.hostname;
+    if (!host) return Promise.resolve({ state: 'skip' });
+
+    var SCHEME = { plain: 'http:', secure: 'https:' };
+    function hit(scheme, port) {
+      var url = scheme + '//' + host + ':' + port + '/canary';
+      return withTimeout(
+        fetch(url, { mode: 'no-cors', cache: 'no-store', credentials: 'omit' })
+          .then(function () { return { state: 'ok' }; }, function () { return { state: 'fail' }; }),
+        2500
+      );
+    }
+
+    // 先确认当前部署是否提供自检端点，避免把"没有端点"误判成"校验通过"
+    var marker = fetch('canary-port.txt', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .catch(function () { return ''; });
+
+    return marker.then(function (txt) {
+      var port = (txt || '').trim();
+      if (!/^\d+$/.test(port)) return { state: 'skip' };
+      // 端口必须先能应答明文请求（nginx 会回 400），否则说明端点根本没发布，
+      // 这时 https 探测失败只是"连不上"，不能当成"证书被正确拒绝"。
+      return hit(SCHEME.plain, port).then(function (alive) {
+        if (alive.state !== 'ok') return { state: 'skip' };
+        return hit(SCHEME.secure, port).then(function (r) {
+          return { state: r.state === 'ok' ? 'accepted' : 'rejected' };
+        });
+      });
+    });
+  }
+
+  function judgeCanary(res) {
+    if (res.state === 'accepted') {
+      return {
+        status: 'fail',
+        detail: '浏览器接受了一张自签名的无效证书。这说明本机浏览器被配置成忽略证书错误（常见于组策略、调试参数或中间人审计软件的配置），所有 HTTPS 加密与身份校验都已失效，风险高于本次证书漏洞本身。',
+        evidence: 'selfsigned probe = accepted (should have been rejected)'
+      };
+    }
+    if (res.state === 'rejected') {
+      return {
+        status: 'pass',
+        detail: '自签证书端点被正常拒绝，说明浏览器在强制校验证书链，没有忽略证书错误。',
+        evidence: 'selfsigned probe = rejected (expected)'
+      };
+    }
+    return {
+      status: 'info',
+      detail: '当前部署方式没有提供自检端点（仅 Docker 镜像内置该端点），本项跳过，不影响其余判定。',
+      evidence: 'canary endpoint not published'
+    };
+  }
+
+  /* ---------- 判定数据完整性 ----------
+     说明：内网多为 http 访问，crypto.subtle 只在安全上下文可用，
+     因此这里用纯 JS 实现 SHA-256，保证任何部署方式下都能本地核验清单。 */
+  var SHA_K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+
+  function sha256Hex(str) {
+    var bytes = [], i, c;
+    for (i = 0; i < str.length; i++) {
+      c = str.charCodeAt(i);
+      if (c < 0x80) bytes.push(c);
+      else if (c < 0x800) bytes.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+      else bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    }
+    var bitLen = bytes.length * 8;
+    bytes.push(0x80);
+    while (bytes.length % 64 !== 56) bytes.push(0);
+    bytes.push(0, 0, 0, 0,
+      (bitLen >>> 24) & 255, (bitLen >>> 16) & 255, (bitLen >>> 8) & 255, bitLen & 255);
+
+    var H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+             0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    var w = new Array(64);
+
+    function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+
+    for (var off = 0; off < bytes.length; off += 64) {
+      for (i = 0; i < 16; i++) {
+        w[i] = (bytes[off + i * 4] << 24) | (bytes[off + i * 4 + 1] << 16) |
+               (bytes[off + i * 4 + 2] << 8) | bytes[off + i * 4 + 3];
+      }
+      for (i = 16; i < 64; i++) {
+        var s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+        var s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+      }
+      var a = H[0], b = H[1], cc = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+      for (i = 0; i < 64; i++) {
+        var S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+        var ch = (e & f) ^ (~e & g);
+        var t1 = (h + S1 + ch + SHA_K[i] + w[i]) | 0;
+        var S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+        var maj = (a & b) ^ (a & cc) ^ (b & cc);
+        var t2 = (S0 + maj) | 0;
+        h = g; g = f; f = e; e = (d + t1) | 0;
+        d = cc; cc = b; b = a; a = (t1 + t2) | 0;
+      }
+      H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + cc) | 0; H[3] = (H[3] + d) | 0;
+      H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+    }
+
+    var out = '';
+    for (i = 0; i < 8; i++) out += ('00000000' + (H[i] >>> 0).toString(16)).slice(-8);
+    return out;
+  }
+
+  function verifyData() {
+    try {
+      var canon = CERTS.map(function (c) { return String(c.sha256).toUpperCase(); }).sort().join('\n');
+      var hex = sha256Hex(canon).toUpperCase();
+      var ok = hex === CERTS_SHA256;
+      return {
+        status: ok ? 'pass' : 'fail',
+        detail: ok
+          ? '页面内置的 16 张证书指纹与发布时登记的摘要一致，清单未被篡改。本项由页面自行计算，不依赖任何外部服务。'
+          : '页面内置的证书指纹与登记摘要不一致，本页可能被改动过，结论不可信，请改用原始分发包。',
+        evidence: 'sha256(' + CERTS.length + ' certs) = ' + hex
+      };
+    } catch (e) {
+      return { status: 'info', detail: '当前浏览器无法完成本地摘要计算，本项跳过。', evidence: String(e && e.message || e) };
+    }
+  }
+
+  /* ---------- 处置建议 ---------- */
+  function buildAdvice(id, results) {
+    var items = [];
+    var browserBad = results.browser.status === 'fail' || results.browser.status === 'warn';
+    var tlsBad = results.canary.status === 'fail';
+
+    if (tlsBad) {
+      items.push('<b>先修浏览器证书校验。</b>本机浏览器正在忽略证书错误，这会让任何 HTTPS 防护失效。检查是否装了带 SSL 解密功能的审计/抓包软件，或组策略里是否下发了忽略证书错误的配置，恢复默认后刷新本页复测。');
+    }
+
+    if (id.family === 'ie') {
+      items.push('<b>停用 Internet Explorer。</b>改用当前版本的 Chrome 或 Edge 访问业务系统，IE 既没有内置黑名单也不再获得更新。');
+    } else if (browserBad) {
+      if (id.bucket === 'chromium') {
+        items.push('<b>把浏览器升级到最新稳定版。</b>Chromium 内核的内置黑名单随版本下发，升到最新版即可拿到本次封锁。隔离环境请用离线安装包：在能取到安装包的机器上下载完整安装程序，拷入后覆盖安装，不要依赖浏览器自带的增量更新。');
+      } else if (id.bucket === 'firefox') {
+        items.push('<b>把 Firefox 升级到最新版。</b>Firefox 的封锁通过 OneCRL 随版本下发；CRLite 还需要能取到远端数据，隔离环境下不要指望它，以版本为准。');
+      } else if (id.bucket === 'safari' || id.family === 'ios') {
+        items.push('<b>升级操作系统。</b>Safari 与 iOS 上的浏览器内核随系统更新发布，单独升级浏览器无效，需要把 macOS / iOS 升到包含 10 月 19 日之后封锁列表的版本。');
+      } else {
+        items.push('<b>确认浏览器版本并升级。</b>当前浏览器无法被自动识别，请手动查看"关于"页面确认版本，并与厂商公布的封锁时间对照。');
+      }
+      if (id.shell) {
+        items.push('<b>套壳浏览器不要作为唯一入口。</b>360、QQ、搜狗等浏览器的内核通常落后官方版本数个月，且更新节奏不受你控制。建议在这些机器上额外安装一份官方 Chrome 或 Edge，专门用于访问 HTTPS 业务系统。');
+      }
+    }
+
+    if (results.browser.status === 'pass' && !tlsBad) {
+      items.push('<b>当前浏览器层无需处置。</b>保持浏览器自动更新开启即可，避免长期停留在旧版本。');
+    }
+
+    items.push('<b>系统层需要管理员另行核对。</b>本次封锁的第三道网（Windows 吊销列表）随系统累积更新下发，影响 OA 客户端、.NET、Java 等不走浏览器的程序。网页读不到这一层，请由管理员在本机核对系统补丁日期是否晚于 2026-10-20。');
+    items.push('<b>不要删除 eMudhra 或 AAA 的根证书。</b>AAA 还给大量正常业务签过证书，删根会误伤；只封锁这 16 张中间证书即可，影响面最小。');
+    items.push('<b>把结论记入台账。</b>同一批次的电脑通常在同一时间装机、同一时间停更，抽查几台就能判断整体情况；发现旧版本的机器，整批一起升级。');
+
+    return items;
+  }
+
+  /* ---------- 渲染 ---------- */
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  var ICON = { pass: '✓', warn: '!', fail: '✕', info: 'i' };
+  var CHAR = { pass: '通过', warn: '需关注', fail: '未通过', info: '提示' };
+  var ACTION = { pass: '无需操作', warn: '待解决', fail: '待解决', info: '无需操作' };
+
+  function row(title, res) {
+    return '<div class="check">' +
+      '<div class="dot ' + res.status + '">' + ICON[res.status] + '</div>' +
+      '<div class="body">' +
+        '<div class="head">' +
+          '<span class="name">' + esc(title) + '</span>' +
+          '<span class="tag ' + res.status + '">' + CHAR[res.status] + '</span>' +
+          '<span class="tag">' + ACTION[res.status] + '</span>' +
+        '</div>' +
+        '<p class="detail">' + esc(res.detail) + '</p>' +
+        (res.evidence ? '<div class="ev">' + esc(res.evidence) + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  function render(id, results, osText) {
+    var order = ['browser', 'canary', 'integ'];
+    var worst = 'pass';
+    order.forEach(function (k) {
+      var s = results[k].status;
+      if (s === 'fail') worst = 'fail';
+      else if (s === 'warn' && worst !== 'fail') worst = 'warn';
+    });
+
+    var v = document.getElementById('verdict');
+    v.className = 'card ' + worst;
+
+    var titles = {
+      pass: '浏览器层已受保护',
+      warn: '需要确认一次浏览器版本',
+      fail: '仍可能被冒充，需立即处置'
+    };
+    var subs = {
+      pass: '当前浏览器版本晚于封锁日期，内置黑名单应已包含本次封锁的 16 张证书；证书校验强制生效。',
+      warn: '浏览器版本接近封锁日期，或无法确定版本，无法确认内置黑名单是否已包含本次封锁。',
+      fail: '浏览器层缺少有效防线：要么版本早于封锁日期，要么本机浏览器被配置成忽略证书错误。'
+    };
+
+    document.getElementById('vmark').textContent = ICON[worst] || 'i';
+    document.getElementById('vtitle').textContent = titles[worst];
+    document.getElementById('vsub').textContent = subs[worst];
+
+    var count = { pass: 0, warn: 0, fail: 0, info: 0 };
+    order.forEach(function (k) { count[results[k].status]++; });
+    document.getElementById('vcount').innerHTML =
+      '<span class="chip pass">通过 ' + count.pass + '</span>' +
+      '<span class="chip warn">需关注 ' + count.warn + '</span>' +
+      '<span class="chip fail">未通过 ' + count.fail + '</span>' +
+      (count.info ? '<span class="chip">提示 ' + count.info + '</span>' : '');
+
+    document.getElementById('checks').innerHTML =
+      row('浏览器版本与封锁时间线', results.browser) +
+      row('浏览器证书校验强制力', results.canary) +
+      row('判定数据完整性', results.integ);
+
+    document.getElementById('advice').innerHTML = buildAdvice(id, results)
+      .map(function (t) { return '<li>' + t + '</li>'; }).join('');
+
+    document.getElementById('i-browser').textContent = id.name;
+    document.getElementById('i-version').textContent = id.major ? String(id.major) + (id.bucket ? '（主版本号）' : '') : '未能识别';
+    document.getElementById('i-engine').textContent = id.engine;
+    document.getElementById('i-os').textContent = osText;
+    document.getElementById('i-time').textContent = new Date().toLocaleString('zh-CN', { hour12: false });
+    document.getElementById('i-baseline').innerHTML =
+      'Chromium ' + BASE.chromium.major + ' / Firefox ' + BASE.firefox.major + ' / Safari ' + BASE.safari.major +
+      '（登记于 ' + BASE.chromium.date + '，封锁日期 ' + BLOCK.chromium + '）';
+
+    document.getElementById('certbody').innerHTML = CERTS.map(function (c) {
+      return '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.issued_by) + '</td><td><code>' + esc(c.sha256) + '</code></td></tr>';
+    }).join('');
+  }
+
+  /* ---------- 启动 ---------- */
+  function boot() {
+    var ua = navigator.userAgent || '';
+    var id = identify(ua, null);
+
+    var uaDataP = Promise.resolve(null);
+    if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      uaDataP = withTimeout(
+        navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platform', 'platformVersion'])
+          .then(function (d) { return d; }, function () { return null; }),
+        1500
+      ).then(function (d) { return d && d.state ? null : d; });
+    }
+
+    Promise.all([uaDataP, canaryProbe(), verifyData()]).then(function (out) {
+      var uaData = out[0];
+      var canary = out[1];
+      var integ = out[2];
+
+      if (uaData && uaData.fullVersionList) {
+        var list = uaData.fullVersionList;
+        var chrome = list.filter(function (b) { return b.brand === 'Google Chrome'; })[0];
+        var edge = list.filter(function (b) { return b.brand === 'Microsoft Edge'; })[0];
+        var pick = edge || chrome;
+        if (pick) {
+          var major = parseInt(pick.version, 10);
+          if (major && major > (id.major || 0)) {
+            id.major = major;
+            id.bucket = 'chromium';
+            id.engine = 'Chromium';
+            id.name = edge ? 'Microsoft Edge' : 'Google Chrome';
+            id.shell = false;
+          }
+        }
+      }
+
+      var osText = (uaData && uaData.platform ? uaData.platform : (navigator.platform || '未知')) +
+        (uaData && uaData.platformVersion ? ' ' + uaData.platformVersion : '');
+      var arch = /WOW64|Win64|x64/.test(ua) ? ' · 64 位' : '';
+
+      var results = {
+        browser: judgeBrowser(id),
+        canary: judgeCanary(canary),
+        integ: integ
+      };
+      render(id, results, osText + arch);
+      document.title = 'emSign 证书漏洞本地检测 — ' + document.getElementById('vtitle').textContent;
+    }).catch(function (err) {
+      var v = document.getElementById('verdict');
+      v.className = 'card warn';
+      document.getElementById('vmark').textContent = '!';
+      document.getElementById('vtitle').textContent = '无法完成判定';
+      document.getElementById('vsub').textContent =
+        '浏览器在执行判定时出错（' + (err && err.message ? err.message : String(err)) +
+        '）。请改用最新版的 Chrome、Edge 或 Firefox 重新打开本页。';
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

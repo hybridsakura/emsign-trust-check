@@ -59,12 +59,10 @@
   <header>
     <span class="lang"><a href="zh.html">中文版</a></span>
     <h1>emSign Trust Check</h1>
-    <p class="sub">Does your browser still trust the compromised eMudhra intermediate CAs? &mdash; a self-hostable, intranet-friendly checker inspired by <!-- internet-only --><a href="https://emudhra.we-have-a-problem.com/">emudhra.we-have-a-problem.com</a><!-- /internet-only --><!-- lan-only -->the public eMudhra disclosure<!-- /lan-only --></p>
+    <p class="sub">Does your browser still trust the compromised eMudhra intermediate CAs? &mdash; a self-hostable, intranet-friendly checker inspired by<a href="https://emudhra.we-have-a-problem.com/">emudhra.we-have-a-problem.com</a></p>
   </header>
 
-  <!-- internet-only -->
   <div id="offline-banner" class="banner warn" style="display:none;margin:0 0 18px"></div>
-  <!-- /internet-only -->
 
   <div class="card">
     <h2>Background</h2>
@@ -72,7 +70,6 @@
     <p style="margin:0">The certificates have been blocked in Firefox and Chrome since <strong>Oct 17</strong>, on Apple platforms since <strong>Oct 19</strong>, and on Microsoft platforms since <strong>Oct 20</strong> &mdash; delivered through revocation push mechanisms (CRLite, CRLSets, Disallowed CTL). <strong>Machines that stay offline for long periods (typical intranet computers) may never have received these pushes and need to be checked individually.</strong></p>
   </div>
 
-  <!-- internet-only -->
   <div class="card" id="check-card">
     <h2>Live check <span class="tag">requires access to the external test domains</span></h2>
     <p style="margin-top:0">This page opens HTTPS connections to twelve test sites whose certificate chains are signed by the compromised intermediates. If a connection <strong>succeeds</strong>, your browser still trusts that chain and is <strong>at risk</strong>. If it is rejected by certificate validation, you are protected.</p>
@@ -85,7 +82,6 @@
     <div id="summary" class="banner"></div>
     <p style="margin:16px 0 0"><button id="rerun">Run check</button></p>
   </div>
-  <!-- /internet-only -->
 
   <div class="card">
     <h2>Your browser</h2>
@@ -95,12 +91,7 @@
 
   <div class="card" id="offline">
     <h2>Fully offline machines <span class="tag">works with the network cable unplugged</span></h2>
-    <!-- internet-only -->
     <p style="margin:0">If every row above shows a timeout, this machine cannot reach the test domains and the live check is inconclusive. Use the bundled offline checker instead:</p>
-    <!-- /internet-only -->
-    <!-- lan-only -->
-    <p style="margin:0">This is the <strong>LAN edition</strong>: it makes no outbound network requests. Run the bundled checker on the machine you want to inspect — both scripts read the local trust store and installed browser versions only.</p>
-    <!-- /lan-only -->
     <ul class="tight">
       <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a> &mdash; Windows PowerShell script that compares the 16 compromised certificates' fingerprints against the local Disallowed CTL, enumerates installed browser versions.</li>
       <li><a href="downloads/check-emsign-linux.sh"><code>check-emsign-linux.sh</code></a> &mdash; Linux equivalent: inspects distrust markers in the local trust store and the ca-certificates package version.</li>
@@ -122,7 +113,6 @@
   </div>
 </div>
 
-<!-- internet-only -->
 <script>
 // Twelve test hosts: 6 TLS intermediates x 2 chains (emSign root / AAA Certificate Services cross-sign)
 const HOSTS = [
@@ -269,7 +259,6 @@ applyNetworkState();
 (async () => { if (!(await hasInternet())) showOffline(); })();
 
 </script>
-<!-- /internet-only -->
 
 <script>
 // Browser info

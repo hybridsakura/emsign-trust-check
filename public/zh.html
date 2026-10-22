@@ -66,7 +66,6 @@
     <p style="margin:0">Firefox / Chrome 已于 <strong>10 月 17 日</strong>、Apple 平台于 <strong>10 月 19 日</strong>、Microsoft 平台于 <strong>10 月 20 日</strong>起封锁这些证书。<strong>长期不联网的内网电脑很可能尚未收到封锁列表，需要逐台检测。</strong></p>
   </div>
 
-  <!-- internet-only -->
   <div class="card" id="check-card">
     <h2>在线行为检测 <span class="tag">需要能访问外网测试域名</span></h2>
     <p style="margin-top:0">本页会向 12 个由被攻陷中间 CA 签发的测试站点发起 HTTPS 连接。若连接<strong>成功</strong>，说明当前浏览器仍信任该证书链，<strong>存在风险</strong>；若连接被证书验证拦截，则浏览器已受保护。</p>
@@ -79,7 +78,6 @@
     <div id="summary" class="banner"></div>
     <p style="margin:16px 0 0"><button id="rerun">开始检测</button></p>
   </div>
-  <!-- /internet-only -->
 
   <div class="card">
     <details>
@@ -107,9 +105,7 @@
     </details>
   </div>
 
-  <!-- internet-only -->
   <div id="offline-banner" class="banner warn" style="display:none;margin:0 0 18px"></div>
-  <!-- /internet-only -->
 
   <div class="card">
     <h2>当前浏览器信息</h2>
@@ -119,19 +115,12 @@
 
   <div class="card" id="offline">
     <h2>完全离线的机器怎么测？ <span class="tag">拔掉网线也能用</span></h2>
-    <!-- internet-only -->
     <p style="margin:0">如果上面所有项目都显示"超时/无法连接"，说明本机无法访问外网测试域名，在线检测不可用。请使用配套的 PowerShell 离线检测脚本 <code>Check-EmSignTrust.ps1</code>，它通过以下方式判断：</p>
-    <!-- /internet-only -->
-    <!-- lan-only -->
-    <p style="margin:0">本版本为<strong>内网版</strong>：页面不会发起任何外部网络请求。请把附带的脚本拷到需要检测的机器上运行——它们只读取本机信任库与已安装浏览器版本。</p>
-    <!-- /lan-only -->
     <ul class="tight">
       <li><a href="downloads/Check-EmSignTrust.ps1"><code>Check-EmSignTrust.ps1</code></a>（Windows）/ <a href="downloads/check-emsign-linux.sh"><code>check-emsign-linux.sh</code></a>（Linux）可完全离线运行；</li>
       <li>检查 Windows「不允许的证书」吊销列表（Disallowed CTL）中是否已包含 16 张问题证书的指纹；</li>
       <li>枚举本机安装的浏览器及版本，对照各厂商封锁时间给出风险提示；</li>
-      <!-- internet-only -->
       <li>（可选）在有外网时直接对 12 个测试域名做 TLS 握手探测。</li>
-      <!-- /internet-only -->
     </ul>
     <p style="margin:12px 0 4px"><strong>Linux 完全离线执行：</strong></p>
     <p style="margin:0"><code>bash check-emsign-linux.sh --skip-online</code> —— 只读取本机信任库与 ca-certificates 版本，全程不发起任何网络请求；在无出网环境也会自动跳过可选探测。</p>
@@ -151,7 +140,6 @@
   </div>
 </div>
 
-<!-- internet-only -->
 <script>
 // 12 个测试主机：6 个 TLS 中间 CA × 2 条链（emSign 根 / AAA Certificate Services 交叉签名）
 const HOSTS = [
@@ -296,7 +284,6 @@ applyNetworkState();
 (async () => { if (!(await hasInternet())) showOffline(); })();
 
 </script>
-<!-- /internet-only -->
 
 <script>
 // 浏览器信息

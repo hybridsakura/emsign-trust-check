@@ -30,8 +30,15 @@ jobs:
         run: |
           python3 scripts/build-edition.py --edition internet --out /tmp/tg-internet
           python3 scripts/build-edition.py --edition lan --out /tmp/tg-lan
-          ! grep -qE "fetch\(|外网|Internet|在线检测|live check" /tmp/tg-lan/index.html
-          ! grep -qE "fetch\(|外网|Internet|在线检测|live check" /tmp/tg-lan/zh.html
+          # LAN page: Chinese by default, answers on its own, no live-probe remnants
+          grep -q 'id="verdict"' /tmp/tg-lan/index.html
+          grep -q 'lang="zh-CN"' /tmp/tg-lan/index.html
+          cmp -s /tmp/tg-lan/index.html /tmp/tg-lan/zh.html
+          ! grep -qE 'https://|http://|外网|在线检测|在线探测|在线行为检测' /tmp/tg-lan/index.html
+          ! grep -qE '<button|href="downloads/' /tmp/tg-lan/index.html
+          # Internet page keeps the live-probe UI and must not carry the LAN verdict block
+          grep -q 'check-card' /tmp/tg-internet/index.html
+          ! grep -q 'id="verdict"' /tmp/tg-internet/index.html
 
   windows:
     name: Windows portable exe
@@ -87,14 +94,20 @@ jobs:
           docker run --rm --network none emsign-trust-check:0.0.0-ci \
             sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/downloads/Check-EmSignTrust.ps1 | head -1'
 
-      - name: LAN edition has no live-probe UI and no external reference
+      - name: LAN edition answers entirely inside the browser
         run: |
+          # Chinese by default at /, verdict block present, no live-probe remnants
           docker run --rm --network none emsign-trust-check:0.0.0-ci-lan \
-            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/zh.html | grep -q "内网版"'
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/ | grep -q "vtitle"'
           docker run --rm --network none emsign-trust-check:0.0.0-ci-lan \
-            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; ! wget -qO- http://127.0.0.1/zh.html | grep -qE "在线行为检测|fetch\(|外网"'
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; ! wget -qO- http://127.0.0.1/ | grep -qE "在线行为检测|https://|外网"'
+          docker run --rm --network none emsign-trust-check:0.0.0-ci-lan \
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/canary-port.txt | grep -qx 8443'
           docker run --rm --network none emsign-trust-check:0.0.0-ci-lan \
             sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -qO- http://127.0.0.1/EDITION.txt | grep -qx lan'
+          # the self-check endpoint must exist and must reject plain HTTP on the TLS port
+          docker run --rm --network none emsign-trust-check:0.0.0-ci-lan \
+            sh -c 'nginx -g "daemon off;" >/dev/null 2>&1 & sleep 2; wget -q -O /dev/null http://127.0.0.1:8443/canary 2>&1 | grep -q "400"'
 
       - uses: actions/upload-artifact@v4
         with:

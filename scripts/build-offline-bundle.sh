@@ -53,13 +53,17 @@ python3 scripts/build-edition.py --edition "$EDITION" --src public --out "$WORK/
 echo "==> building image emsign-trust-check:${VERSION}${TAG_SUFFIX} (alpine base)"
 mkdir -p "$WORK/img"
 cp -r "$WORK/public" "$WORK/img/public"
+cp -r deploy/canary "$WORK/img/canary"
+cp deploy/canary.conf "$WORK/img/canary.conf"
 cat > "$WORK/img/Dockerfile" <<'DOCKER'
 # Alpine-based static image: no runtime dependency, no outbound request.
 FROM nginx:1.27-alpine
 COPY public/ /usr/share/nginx/html/
+COPY canary/ /etc/nginx/canary/
+COPY canary.conf /etc/nginx/conf.d/canary.conf
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1
-EXPOSE 80
+EXPOSE 80 8443
 DOCKER
 
 if docker buildx version >/dev/null 2>&1; then
