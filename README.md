@@ -92,6 +92,8 @@ docker run --rm --network none emsign-trust-check:1.0.0 sh -c 'wget -qO- http://
 
 ### Offline behaviour (verified, not assumed)
 
+![Offline state](docs/screenshot-offline.png)
+
 - The web UI has **zero external assets** — no CDN, no web fonts, no analytics. `scripts/check-offline-assets.sh` fails CI if any `<script src>`, `<link href>`, `@import` or `url()` points outside the site.
 - On load, the page probes connectivity once. On an air-gapped host it immediately shows **“No Internet access detected”**, marks every row `not checked (offline)` and points to the bundled scripts. It deliberately **never reports “safe” from failed connections**, because a network failure and a rejected certificate look identical in the browser.
 - `check-emsign-linux.sh` works with `--skip-online` (no network calls at all) and otherwise auto-skips the live probes after a 2-second egress check, so an isolated host doesn’t wait through 12 timeouts.
